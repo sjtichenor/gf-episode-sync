@@ -2,9 +2,15 @@
 Sync new podcast episodes from RSS feeds into the Airtable "Full Episodes" table.
 
 Reads every record in the Shows table that has "Auto-Add Episodes" checked and an
-"RSS Feed URL", pulls the feed, and creates a Full Episodes record for any episode
-we have not already logged. Episodes are deduped on "Feed GUID", the unique id the
-feed itself assigns to each episode, so re-running is safe.
+"RSS Feed URL", pulls the feed, and records any episode we have not already logged.
+Episodes are deduped on "Feed GUID", the unique id the feed itself assigns to each
+episode, so re-running is safe.
+
+Producers often create a Full Episodes record before the episode is published --
+a placeholder titled with the guest's name, carrying an Episode Number but no
+links. When the episode later shows up in the feed, this script claims that
+placeholder and fills it in, rather than creating a second record for the same
+episode. See claim_placeholder() for how the match is made.
 
 Run hourly as a Render cron job:
     python episodes/sync_episodes.py
@@ -15,8 +21,10 @@ Environment:
     AIRTABLE_BASE_ID   Base id, defaults to the Good Future Media base
     EPISODE_LOOKBACK_DAYS      Ignore episodes older than this. Default 30.
                                Set to 0 to consider a show's entire back catalog.
-    MAX_NEW_EPISODES_PER_SHOW  Safety cap per show per run. Default 25.
-    DRY_RUN                    "1" to log what would be created without writing.
+    MAX_NEW_EPISODES_PER_SHOW  Cap on newly created records per show per run.
+                               Default 25. Placeholder claims are never capped --
+                               they add no rows.
+    DRY_RUN                    "1" to log what would happen without writing.
 """
 
 import os
@@ -135,6 +143,23 @@ class Airtable:
             time.sleep(0.25)
         return created
 
+    def update_records(self, table, updates):
+        """updates: list of (record_id, fields). Leaves untouched fields alone."""
+        updated = []
+        for i in range(0, len(updates), 10):
+            chunk = updates[i : i + 10]
+            payload = self._request(
+                "PATCH",
+                table,
+                json={
+                    "records": [{"id": rid, "fields": f} for rid, f in chunk],
+                    "typecast": False,
+                },
+            )
+            updated.extend(payload.get("records", []))
+            time.sleep(0.25)
+        return updated
+
 
 # --- Feed parsing -----------------------------------------------------------
 
@@ -213,39 +238,81 @@ def load_shows(at):
     return shows
 
 
-def load_known_guids(at):
-    """Every Feed GUID already in Full Episodes, so we never create a duplicate."""
-    guids = set()
-    for record in at.list_records(EPISODES_TABLE, fields=[F_EP_GUID]):
-        guid = (record.get("fields", {}).get(F_EP_GUID) or "").strip()
+def load_episode_index(at):
+    """
+    Two views of Full Episodes:
+
+    known_guids  every Feed GUID already logged, so we never duplicate an episode.
+    placeholders {(show_record_id, episode_number): record_id} for records that
+                 have no Feed GUID yet -- rows a producer created ahead of
+                 publication. These are what a published episode can claim.
+    """
+    known_guids = set()
+    placeholders = {}
+    duplicates = set()
+
+    for record in at.list_records(
+        EPISODES_TABLE, fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER]
+    ):
+        fields = record.get("fields", {})
+        guid = (fields.get(F_EP_GUID) or "").strip()
         if guid:
-            guids.add(guid)
-    return guids
+            known_guids.add(guid)
+            continue
+
+        number = fields.get(F_EP_NUMBER)
+        shows = fields.get(F_EP_SHOW) or []
+        if number is None or not shows:
+            # Nothing to match on. Left alone; a new record will be created.
+            continue
+
+        key = (shows[0], int(number))
+        if key in placeholders:
+            # Two placeholders claiming the same episode: ambiguous, so match
+            # neither and let a human sort it out.
+            duplicates.add(key)
+            continue
+        placeholders[key] = record["id"]
+
+    for key in duplicates:
+        placeholders.pop(key, None)
+        log.warning(
+            "More than one placeholder for show %s episode %s. "
+            "Not matching either; resolve by hand.",
+            key[0],
+            key[1],
+        )
+
+    return known_guids, placeholders
 
 
-def new_episodes_for_show(show, known_guids, cutoff):
-    """Return field dicts for episodes in this show's feed we have not logged."""
+def plan_for_show(show, known_guids, placeholders, cutoff):
+    """
+    Work out what this show's feed implies.
+
+    Returns (claims, creates):
+        claims  [(record_id, fields, guid, label)] placeholders to fill in
+        creates [(air_date, guid, fields)]         genuinely new episodes
+    """
     feed = fetch_feed(show["url"])
     if feed.bozo and not feed.entries:
         raise RuntimeError(f"could not parse feed: {feed.bozo_exception}")
 
-    candidates = []
+    claims, creates = [], []
+
     for entry in feed.entries:
         guid = entry_guid(entry)
         if not guid or guid in known_guids:
             continue
 
         air_date = entry_air_date(entry)
-        if cutoff and air_date and air_date < cutoff:
-            continue
-        if cutoff and air_date is None:
-            # No date we can trust; skip rather than backfill an unknown archive.
+        if cutoff and (air_date is None or air_date < cutoff):
+            # No trustworthy date, or older than the window we care about.
             continue
 
         fields = {
             F_EP_TITLE: entry_title(entry),
             F_EP_GUID: guid,
-            F_EP_SHOW: [show["id"]],
         }
         if air_date:
             fields[F_EP_AIR_DATE] = air_date.strftime("%Y-%m-%d")
@@ -255,22 +322,32 @@ def new_episodes_for_show(show, known_guids, cutoff):
         if number is not None:
             fields[F_EP_NUMBER] = number
 
-        candidates.append((air_date, guid, fields))
+        # Does a producer-created placeholder already stand for this episode?
+        # Only episode number is trustworthy here: placeholder titles are guest
+        # names or "title TBC", never the published title.
+        key = (show["id"], number) if number is not None else None
+        if key is not None and key in placeholders:
+            record_id = placeholders.pop(key)
+            claims.append((record_id, fields, guid, f"ep {number}"))
+            continue
+
+        fields[F_EP_SHOW] = [show["id"]]
+        creates.append((air_date, guid, fields))
 
     # Oldest first, so episode order in Airtable reads naturally.
-    candidates.sort(key=lambda c: c[0] or datetime.min.replace(tzinfo=timezone.utc))
+    creates.sort(key=lambda c: c[0] or datetime.min.replace(tzinfo=timezone.utc))
 
-    if len(candidates) > MAX_NEW_PER_SHOW:
+    if len(creates) > MAX_NEW_PER_SHOW:
         log.warning(
             "%s: %d new episodes found, capping at %d this run. "
             "Re-run or raise MAX_NEW_EPISODES_PER_SHOW to catch up.",
             show["name"],
-            len(candidates),
+            len(creates),
             MAX_NEW_PER_SHOW,
         )
-        candidates = candidates[-MAX_NEW_PER_SHOW:]
+        creates = creates[-MAX_NEW_PER_SHOW:]
 
-    return candidates
+    return claims, creates
 
 
 def main():
@@ -285,50 +362,73 @@ def main():
         log.info("No shows have Auto-Add Episodes enabled. Nothing to do.")
         return 0
 
-    known_guids = load_known_guids(at)
+    known_guids, placeholders = load_episode_index(at)
     log.info(
-        "Syncing %d show(s). %d episode(s) already logged. Lookback: %s. Dry run: %s.",
+        "Syncing %d show(s). %d episode(s) logged, %d placeholder(s) awaiting "
+        "publication. Lookback: %s. Dry run: %s.",
         len(shows),
         len(known_guids),
+        len(placeholders),
         f"{LOOKBACK_DAYS}d" if cutoff else "all time",
         DRY_RUN,
     )
 
-    total_created, failures = 0, []
+    total_created, total_claimed, failures = 0, 0, []
 
     for show in shows:
         try:
-            candidates = new_episodes_for_show(show, known_guids, cutoff)
+            claims, creates = plan_for_show(show, known_guids, placeholders, cutoff)
         except Exception as exc:  # one bad feed must not stop the rest
             log.error("%s: feed failed (%s) — %s", show["name"], show["url"], exc)
             failures.append(show["name"])
             continue
 
-        if not candidates:
+        if not claims and not creates:
             log.info("%s: up to date.", show["name"])
             continue
 
-        batch = [fields for _, _, fields in candidates]
-        if DRY_RUN:
-            for fields in batch:
+        for record_id, fields, guid, label in claims:
+            if DRY_RUN:
                 log.info(
-                    "%s: WOULD CREATE %s (%s)",
+                    "%s: WOULD CLAIM placeholder %s (%s) -> %s",
                     show["name"],
+                    label,
+                    record_id,
                     fields[F_EP_TITLE],
-                    fields.get(F_EP_AIR_DATE, "no date"),
                 )
-        else:
-            at.create_records(EPISODES_TABLE, batch)
-            # Guard against the same guid appearing twice in one run.
-            known_guids.update(guid for _, guid, _ in candidates)
+            else:
+                at.update_records(EPISODES_TABLE, [(record_id, fields)])
+                known_guids.add(guid)
+            log.info(
+                "%s: filled in pre-created %s — %s",
+                show["name"],
+                label,
+                fields[F_EP_TITLE],
+            )
+            total_claimed += 1
 
-        total_created += len(batch)
-        log.info("%s: added %d episode(s).", show["name"], len(batch))
+        if creates:
+            batch = [fields for _, _, fields in creates]
+            if DRY_RUN:
+                for fields in batch:
+                    log.info(
+                        "%s: WOULD CREATE %s (%s)",
+                        show["name"],
+                        fields[F_EP_TITLE],
+                        fields.get(F_EP_AIR_DATE, "no date"),
+                    )
+            else:
+                at.create_records(EPISODES_TABLE, batch)
+                # Guard against the same guid appearing twice in one run.
+                known_guids.update(guid for _, guid, _ in creates)
+            total_created += len(batch)
+            log.info("%s: added %d episode(s).", show["name"], len(batch))
 
     log.info(
-        "Done. %d episode(s) %s. %d feed(s) failed.",
+        "Done. %d episode(s) added, %d pre-created record(s) filled in. "
+        "%d feed(s) failed.",
         total_created,
-        "would be added" if DRY_RUN else "added",
+        total_claimed,
         len(failures),
     )
     if failures:
