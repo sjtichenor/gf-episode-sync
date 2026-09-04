@@ -195,6 +195,25 @@ def entry_guid(entry):
     return (entry.get("link") or entry.get("title") or "").strip()
 
 
+def entry_link(entry):
+    """
+    Somewhere to send a director who wants to hear the episode.
+
+    Prefer the episode's own page. Plenty of feeds omit <link> entirely, but the
+    enclosure -- the audio file itself -- is required for the feed to be valid,
+    so it is always there. It is not a page, but it plays, which is what mining
+    actually needs.
+    """
+    link = (entry.get("link") or "").strip()
+    if link:
+        return link
+    for enclosure in entry.get("enclosures") or []:
+        href = (enclosure.get("href") or "").strip()
+        if href:
+            return href
+    return ""
+
+
 def entry_air_date(entry):
     parsed = entry.get("published_parsed") or entry.get("updated_parsed")
     if not parsed:
@@ -414,7 +433,14 @@ def load_episode_index(at):
 
     for record in at.list_records(
         EPISODES_TABLE,
-        fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER, F_EP_DESC, F_EP_ART],
+        fields=[
+            F_EP_GUID,
+            F_EP_SHOW,
+            F_EP_NUMBER,
+            F_EP_DESC,
+            F_EP_ART,
+            F_EP_LINK,
+        ],
     ):
         fields = record.get("fields", {})
         guid = (fields.get(F_EP_GUID) or "").strip()
@@ -425,6 +451,8 @@ def load_episode_index(at):
                 missing.add(F_EP_DESC)
             if not fields.get(F_EP_ART):
                 missing.add(F_EP_ART)
+            if not (fields.get(F_EP_LINK) or "").strip():
+                missing.add(F_EP_LINK)
             if missing:
                 incomplete[guid] = (record["id"], missing)
             continue
@@ -490,6 +518,10 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
                     image = entry_image(entry, feed, page_image)
                     if image:
                         repair[F_EP_ART] = [{"url": image}]
+                if F_EP_LINK in missing:
+                    link = entry_link(entry)
+                    if link:
+                        repair[F_EP_LINK] = link
                 if repair:
                     backfills.append((record_id, repair))
             continue
@@ -505,8 +537,9 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
         }
         if air_date:
             fields[F_EP_AIR_DATE] = air_date.strftime("%Y-%m-%d")
-        if entry.get("link"):
-            fields[F_EP_LINK] = entry["link"].strip()
+        link = entry_link(entry)
+        if link:
+            fields[F_EP_LINK] = link
         number = entry_number(entry)
         if number is not None:
             fields[F_EP_NUMBER] = number
