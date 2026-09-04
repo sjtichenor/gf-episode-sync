@@ -282,18 +282,24 @@ def load_episode_index(at):
     placeholders {(show_record_id, episode_number): record_id} for records that
                  have no Feed GUID yet -- rows a producer created ahead of
                  publication. These are what a published episode can claim.
+    needs_desc   {guid: record_id} for logged episodes with no description yet.
+                 Lets a later run fill in a field the row predates, without a
+                 separate migration.
     """
     known_guids = set()
     placeholders = {}
+    needs_desc = {}
     duplicates = set()
 
     for record in at.list_records(
-        EPISODES_TABLE, fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER]
+        EPISODES_TABLE, fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER, F_EP_DESC]
     ):
         fields = record.get("fields", {})
         guid = (fields.get(F_EP_GUID) or "").strip()
         if guid:
             known_guids.add(guid)
+            if not (fields.get(F_EP_DESC) or "").strip():
+                needs_desc[guid] = record["id"]
             continue
 
         number = fields.get(F_EP_NUMBER)
@@ -319,26 +325,37 @@ def load_episode_index(at):
             key[1],
         )
 
-    return known_guids, placeholders
+    return known_guids, placeholders, needs_desc
 
 
-def plan_for_show(show, known_guids, placeholders, cutoff):
+def plan_for_show(show, known_guids, placeholders, needs_desc, cutoff):
     """
     Work out what this show's feed implies.
 
-    Returns (claims, creates):
-        claims  [(record_id, fields, guid, label)] placeholders to fill in
-        creates [(air_date, guid, fields)]         genuinely new episodes
+    Returns (claims, creates, backfills):
+        claims    [(record_id, fields, guid, label)] placeholders to fill in
+        creates   [(air_date, guid, fields)]         genuinely new episodes
+        backfills [(record_id, fields)]              existing rows missing data
     """
     feed = fetch_feed(show["url"])
     if feed.bozo and not feed.entries:
         raise RuntimeError(f"could not parse feed: {feed.bozo_exception}")
 
-    claims, creates = [], []
+    claims, creates, backfills = [], [], []
 
     for entry in feed.entries:
         guid = entry_guid(entry)
-        if not guid or guid in known_guids:
+        if not guid:
+            continue
+        if guid in known_guids:
+            # Already logged. It may still predate a field we now capture --
+            # deliberately not subject to the lookback window, since the point
+            # is to repair old rows.
+            record_id = needs_desc.pop(guid, None)
+            if record_id:
+                description = entry_description(entry)
+                if description:
+                    backfills.append((record_id, {F_EP_DESC: description}))
             continue
 
         air_date = entry_air_date(entry)
@@ -386,7 +403,7 @@ def plan_for_show(show, known_guids, placeholders, cutoff):
         )
         creates = creates[-MAX_NEW_PER_SHOW:]
 
-    return claims, creates
+    return claims, creates, backfills
 
 
 def main():
@@ -401,7 +418,7 @@ def main():
         log.info("No shows have Auto-Add Episodes enabled. Nothing to do.")
         return 0
 
-    known_guids, placeholders = load_episode_index(at)
+    known_guids, placeholders, needs_desc = load_episode_index(at)
     log.info(
         "Syncing %d show(s). %d episode(s) logged, %d placeholder(s) awaiting "
         "publication. Lookback: %s. Dry run: %s.",
@@ -412,18 +429,31 @@ def main():
         DRY_RUN,
     )
 
-    total_created, total_claimed, failures = 0, 0, []
+    total_created, total_claimed, total_backfilled, failures = 0, 0, 0, []
 
     for show in shows:
         try:
-            claims, creates = plan_for_show(show, known_guids, placeholders, cutoff)
+            claims, creates, backfills = plan_for_show(
+                show, known_guids, placeholders, needs_desc, cutoff
+            )
         except Exception as exc:  # one bad feed must not stop the rest
             log.error("%s: feed failed (%s) — %s", show["name"], show["url"], exc)
             failures.append(show["name"])
             continue
 
+        if backfills:
+            if not DRY_RUN:
+                at.update_records(EPISODES_TABLE, backfills)
+            total_backfilled += len(backfills)
+            log.info(
+                "%s: backfilled show notes on %d existing episode(s).",
+                show["name"],
+                len(backfills),
+            )
+
         if not claims and not creates:
-            log.info("%s: up to date.", show["name"])
+            if not backfills:
+                log.info("%s: up to date.", show["name"])
             continue
 
         for record_id, fields, guid, label in claims:
@@ -464,10 +494,11 @@ def main():
             log.info("%s: added %d episode(s).", show["name"], len(batch))
 
     log.info(
-        "Done. %d episode(s) added, %d pre-created record(s) filled in. "
-        "%d feed(s) failed.",
+        "Done. %d episode(s) added, %d pre-created record(s) filled in, "
+        "%d existing record(s) backfilled. %d feed(s) failed.",
         total_created,
         total_claimed,
+        total_backfilled,
         len(failures),
     )
     if failures:
