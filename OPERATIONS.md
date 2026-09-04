@@ -180,9 +180,8 @@ though exclusivity is guaranteed.
   legacy rows. The 17:00 run on 2026-09-04 backfilled 94 — every GUID-carrying
   row that was missing one — so the enclosure fallback is confirmed working
   end to end
-- 107 episodes have no Episode Art, all no-GUID legacy rows: 10X Capital
-  Podcast, Trading Places and BG2Pod, plus one orphan with no Show link.
-  All three shows have a Podcast Logo, so 106 are fillable from show art
+- 13 episodes have no Episode Art, down from 107. The other 94 were filled on
+  2026-09-04 with genuine per-episode art, not show logos (see below)
 - 61 distinct images across the 100 most recent episodes, measured *before* the
   og:image tier shipped. Not yet re-measured: the first run after it deployed
   fetched only 1 page, because art was already complete on every GUID-carrying
@@ -217,6 +216,39 @@ though exclusivity is guaranteed.
   gives the dormancy signal the `Active` checkbox was meant to provide, without
   anyone maintaining it.
 
+### Legacy art came from two sources, never the show logo
+
+The 107 pre-sync rows were filled on 2026-09-04 without touching the show logo:
+
+- **Trading Places (24)** from Dropbox. Every episode folder holds
+  `06 - Thumbnail/Finished Thumbnails/EP## Square Thumbnail*.png` — the team
+  makes a **square** cut alongside the 16:9 YouTube one, so these drop into a
+  gallery beside podcast art with no shape mismatch. Ingested via
+  `download_link` temporary URLs, which Airtable fetches and rehosts, so their
+  single-use expiry does not matter. Verified 1080x1080.
+- **10X / How I Invest (70)** from the renamed feed, which carries distinct art
+  on 424 of 425 items. 62 matched on episode number, 8 more by guest name.
+
+**Matching had to be by number, never by guest.** Alex Edelson, Ron Diamond and
+Hunter Somerville each appear twice in the feed at numbers different from ours.
+Where a row was only a guest name, the match was confirmed by finding that name
+in the feed item's description.
+
+The 13 still empty, and why:
+
+- **BG2Pod (5)** — its feed sets no per-episode art at all, on any of 44 items.
+  Show logo is the only option that exists.
+- **Trading Places (6)** — Dropbox and Airtable disagree, so a human should
+  look: EP01 David Zhou has no square thumbnail; Airtable #14 is "Michael
+  Burry" but Dropbox EP14 is "Thanksgiving Episode"; there are *two* EP19
+  folders (Nate & Karin, Noel Moldvai) against Airtable's #19 Nathan Lustig;
+  #20 2NDARY Roundtable's folder holds no square thumbnail while an
+  "EP20 Square Thumbnail" file sits inside the EP19 Noel Moldvai folder; and
+  #28/#31 are still titled TBC, with EP28's thumbnail named for Shri Bashyam,
+  who is #29.
+- **10X (1)** — "Ron Diamond #2" matches two feed episodes.
+- **The First (1)** — no Show link at all.
+
 **Data gaps found along the way:**
 
 - **TP Episode #18 (James Riney)** has published YouTube and Twitter posts but
@@ -226,8 +258,14 @@ though exclusivity is guaranteed.
 - Five shows will never sync: Squawk Box (CNBC publishes no feed for the
   broadcast), Monitoring the Situation (X only), Genfinity, Solana Ecosystem
   Calls, The First (client that never launched).
-- 10X Capital's feed has not published in 639 days and BG2's in 83 — both are
-  clients. Worth finding out where 10X publishes now.
+- **10X Capital Podcast was renamed "How I Invest with David Weisburd."** Its
+  feed was not dead, just abandoned. The live feed is
+  `https://feeds.podcastai.com/LaVYz9xBOj9Q4toB4HfKrC.xml` — a continuation
+  carrying E1-E425 with the original numbering intact, so old episodes still
+  resolve by number. The Shows record still points at the old dead feed
+  (`ZxTOyNz8AEfEo1okVWwEXC.xml`); switching it resumes syncing, and with
+  Auto-Add already on that starts importing new episodes immediately.
+- BG2's feed has not published in 83 days.
 - Roughly 107 rows predate the sync and have no Feed GUID. All are older than
   the lookback window, so they neither match nor duplicate anything — but they
   *would* be re-created as new rows if `EPISODE_LOOKBACK_DAYS` were ever set
