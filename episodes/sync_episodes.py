@@ -63,6 +63,7 @@ F_EP_LINK = "Episode Page"
 F_EP_SHOW = "Show"
 F_EP_GUID = "Feed GUID"
 F_EP_DESC = "Episode Description"
+F_EP_ART = "Episode Art"
 
 API_ROOT = "https://api.airtable.com/v0"
 TOKEN_VARS = (
@@ -215,6 +216,35 @@ def entry_title(entry):
 TAG_RE = re.compile(r"<[^>]+>")
 
 
+def _image_href(obj):
+    if not obj:
+        return None
+    image = obj.get("image")
+    if isinstance(image, dict) and image.get("href"):
+        return image["href"].strip()
+    itunes = obj.get("itunes_image")
+    if isinstance(itunes, dict) and itunes.get("href"):
+        return itunes["href"].strip()
+    return None
+
+
+def entry_image(entry, feed):
+    """
+    Square cover art for the episode, falling back to the show's own artwork.
+
+    Most feeds set per-episode artwork on the item (measured at ~72% of items
+    across our shows), and podcast art is square by spec -- 3000x3000 in
+    practice -- so the fallback never changes the shape of the image. That
+    matters because an Airtable gallery takes its cover from one field: if the
+    episode has no art of its own we still want something there rather than a
+    hole in the grid.
+
+    YouTube thumbnails were considered and rejected: they are 16:9 or 4:3, so
+    mixing them in would give every card a different shape.
+    """
+    return _image_href(entry) or _image_href(feed.get("feed"))
+
+
 def entry_description(entry):
     """
     Show notes for the episode, HTML stripped.
@@ -282,24 +312,30 @@ def load_episode_index(at):
     placeholders {(show_record_id, episode_number): record_id} for records that
                  have no Feed GUID yet -- rows a producer created ahead of
                  publication. These are what a published episode can claim.
-    needs_desc   {guid: record_id} for logged episodes with no description yet.
-                 Lets a later run fill in a field the row predates, without a
+    incomplete   {guid: (record_id, missing)} for logged episodes that predate
+                 a field we now capture. Lets a later run repair them without a
                  separate migration.
     """
     known_guids = set()
     placeholders = {}
-    needs_desc = {}
+    incomplete = {}
     duplicates = set()
 
     for record in at.list_records(
-        EPISODES_TABLE, fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER, F_EP_DESC]
+        EPISODES_TABLE,
+        fields=[F_EP_GUID, F_EP_SHOW, F_EP_NUMBER, F_EP_DESC, F_EP_ART],
     ):
         fields = record.get("fields", {})
         guid = (fields.get(F_EP_GUID) or "").strip()
         if guid:
             known_guids.add(guid)
+            missing = set()
             if not (fields.get(F_EP_DESC) or "").strip():
-                needs_desc[guid] = record["id"]
+                missing.add(F_EP_DESC)
+            if not fields.get(F_EP_ART):
+                missing.add(F_EP_ART)
+            if missing:
+                incomplete[guid] = (record["id"], missing)
             continue
 
         number = fields.get(F_EP_NUMBER)
@@ -325,10 +361,10 @@ def load_episode_index(at):
             key[1],
         )
 
-    return known_guids, placeholders, needs_desc
+    return known_guids, placeholders, incomplete
 
 
-def plan_for_show(show, known_guids, placeholders, needs_desc, cutoff):
+def plan_for_show(show, known_guids, placeholders, incomplete, cutoff):
     """
     Work out what this show's feed implies.
 
@@ -351,11 +387,20 @@ def plan_for_show(show, known_guids, placeholders, needs_desc, cutoff):
             # Already logged. It may still predate a field we now capture --
             # deliberately not subject to the lookback window, since the point
             # is to repair old rows.
-            record_id = needs_desc.pop(guid, None)
-            if record_id:
-                description = entry_description(entry)
-                if description:
-                    backfills.append((record_id, {F_EP_DESC: description}))
+            entry_needs = incomplete.pop(guid, None)
+            if entry_needs:
+                record_id, missing = entry_needs
+                repair = {}
+                if F_EP_DESC in missing:
+                    description = entry_description(entry)
+                    if description:
+                        repair[F_EP_DESC] = description
+                if F_EP_ART in missing:
+                    image = entry_image(entry, feed)
+                    if image:
+                        repair[F_EP_ART] = [{"url": image}]
+                if repair:
+                    backfills.append((record_id, repair))
             continue
 
         air_date = entry_air_date(entry)
@@ -377,6 +422,9 @@ def plan_for_show(show, known_guids, placeholders, needs_desc, cutoff):
         description = entry_description(entry)
         if description:
             fields[F_EP_DESC] = description
+        image = entry_image(entry, feed)
+        if image:
+            fields[F_EP_ART] = [{"url": image}]
 
         # Does a producer-created placeholder already stand for this episode?
         # Only episode number is trustworthy here: placeholder titles are guest
@@ -418,7 +466,7 @@ def main():
         log.info("No shows have Auto-Add Episodes enabled. Nothing to do.")
         return 0
 
-    known_guids, placeholders, needs_desc = load_episode_index(at)
+    known_guids, placeholders, incomplete = load_episode_index(at)
     log.info(
         "Syncing %d show(s). %d episode(s) logged, %d placeholder(s) awaiting "
         "publication. Lookback: %s. Dry run: %s.",
@@ -434,7 +482,7 @@ def main():
     for show in shows:
         try:
             claims, creates, backfills = plan_for_show(
-                show, known_guids, placeholders, needs_desc, cutoff
+                show, known_guids, placeholders, incomplete, cutoff
             )
         except Exception as exc:  # one bad feed must not stop the rest
             log.error("%s: feed failed (%s) — %s", show["name"], show["url"], exc)
@@ -446,7 +494,7 @@ def main():
                 at.update_records(EPISODES_TABLE, backfills)
             total_backfilled += len(backfills)
             log.info(
-                "%s: backfilled show notes on %d existing episode(s).",
+                "%s: backfilled %d existing episode(s).",
                 show["name"],
                 len(backfills),
             )
