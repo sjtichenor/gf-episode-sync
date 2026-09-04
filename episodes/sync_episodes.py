@@ -24,6 +24,9 @@ Environment:
     MAX_NEW_EPISODES_PER_SHOW  Cap on newly created records per show per run.
                                Default 25. Placeholder claims are never capped --
                                they add no rows.
+    MAX_PAGE_IMAGE_FETCHES     Cap on episode-page fetches per run when looking
+                               for cover art. Default 60, which keeps a run
+                               short; the rest are picked up next hour.
     DRY_RUN                    "1" to log what would happen without writing.
 """
 
@@ -75,6 +78,7 @@ TOKEN_VARS = (
 
 LOOKBACK_DAYS = int(os.environ.get("EPISODE_LOOKBACK_DAYS", "30"))
 MAX_NEW_PER_SHOW = int(os.environ.get("MAX_NEW_EPISODES_PER_SHOW", "25"))
+PAGE_IMAGE_BUDGET = int(os.environ.get("MAX_PAGE_IMAGE_FETCHES", "60"))
 DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "True", "yes")
 
 USER_AGENT = "GoodFutureMedia-EpisodeSync/1.0 (+https://goodfuturemedia.com)"
@@ -228,7 +232,76 @@ def _image_href(obj):
     return None
 
 
-def entry_image(entry, feed):
+OG_IMAGE_RE = re.compile(
+    r"""<meta[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["']"""
+    r"""[^>]+content=["']([^"']+)""",
+    re.I,
+)
+OG_IMAGE_RE_REVERSED = re.compile(
+    r"""<meta[^>]+content=["']([^"']+)["']"""
+    r"""[^>]+(?:property|name)=["'](?:og:image(?::secure_url)?|twitter:image)["']""",
+    re.I,
+)
+
+
+class PageImageFinder:
+    """
+    Pulls an episode's cover art off its own web page via og:image.
+
+    Worth the extra request because some feeds set the *show* logo on every
+    item -- Breaking Points is the clearest case, one identical image across
+    every episode -- while their episode pages carry a distinct image per
+    episode. Without this those shows are a wall of identical tiles in a
+    gallery view.
+
+    Budgeted rather than unlimited: a first backfill would otherwise fetch a
+    page for every artless episode in one run. Whatever is skipped is picked
+    up on a later run, since a record is only ever filled in once.
+    """
+
+    def __init__(self, budget):
+        self.budget = budget
+        self.cache = {}
+        self.fetched = 0
+
+    def __call__(self, url):
+        if not url:
+            return None
+        if url in self.cache:
+            return self.cache[url]
+        if self.budget <= 0:
+            return None
+        self.budget -= 1
+        image = None
+        try:
+            resp = requests.get(
+                url,
+                timeout=12,
+                headers={"User-Agent": USER_AGENT},
+                stream=True,
+            )
+            if resp.ok:
+                head = resp.raw.read(200_000, decode_content=True)
+                text = head.decode("utf-8", "replace")
+                match = OG_IMAGE_RE.search(text) or OG_IMAGE_RE_REVERSED.search(text)
+                if match:
+                    image = match.group(1).strip() or None
+            resp.close()
+            self.fetched += 1
+        except Exception:
+            image = None
+        self.cache[url] = image
+        return image
+
+
+def _same_image(a, b):
+    """Same image ignoring query strings -- CDNs vary ?t= and ?size= per request."""
+    if not a or not b:
+        return False
+    return a.split("?", 1)[0] == b.split("?", 1)[0]
+
+
+def entry_image(entry, feed, page_image=None):
     """
     Square cover art for the episode, falling back to the show's own artwork.
 
@@ -239,10 +312,28 @@ def entry_image(entry, feed):
     episode has no art of its own we still want something there rather than a
     hole in the grid.
 
+    Order is: the item's own art, then the episode page's og:image, then the
+    show's art.
+
+    Note the test for the first tier. Several feeds set an item-level image
+    that is simply the show logo again -- Breaking Points does this on every
+    episode -- which is indistinguishable from having no art of its own once
+    it is on screen. Treating that as "no art" is what lets the page tier run
+    and find the distinct image those shows publish on the web.
+
     YouTube thumbnails were considered and rejected: they are 16:9 or 4:3, so
-    mixing them in would give every card a different shape.
+    mixing them in would give every card a different shape, and only a third
+    of episodes have a YouTube link to derive one from.
     """
-    return _image_href(entry) or _image_href(feed.get("feed"))
+    own = _image_href(entry)
+    show = _image_href(feed.get("feed"))
+    if own and not _same_image(own, show):
+        return own
+    if page_image is not None:
+        from_page = page_image((entry.get("link") or "").strip())
+        if from_page:
+            return from_page
+    return own or show
 
 
 def entry_description(entry):
@@ -364,7 +455,7 @@ def load_episode_index(at):
     return known_guids, placeholders, incomplete
 
 
-def plan_for_show(show, known_guids, placeholders, incomplete, cutoff):
+def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_image):
     """
     Work out what this show's feed implies.
 
@@ -396,7 +487,7 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff):
                     if description:
                         repair[F_EP_DESC] = description
                 if F_EP_ART in missing:
-                    image = entry_image(entry, feed)
+                    image = entry_image(entry, feed, page_image)
                     if image:
                         repair[F_EP_ART] = [{"url": image}]
                 if repair:
@@ -422,7 +513,7 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff):
         description = entry_description(entry)
         if description:
             fields[F_EP_DESC] = description
-        image = entry_image(entry, feed)
+        image = entry_image(entry, feed, page_image)
         if image:
             fields[F_EP_ART] = [{"url": image}]
 
@@ -477,12 +568,13 @@ def main():
         DRY_RUN,
     )
 
+    page_image = PageImageFinder(PAGE_IMAGE_BUDGET)
     total_created, total_claimed, total_backfilled, failures = 0, 0, 0, []
 
     for show in shows:
         try:
             claims, creates, backfills = plan_for_show(
-                show, known_guids, placeholders, incomplete, cutoff
+                show, known_guids, placeholders, incomplete, cutoff, page_image
             )
         except Exception as exc:  # one bad feed must not stop the rest
             log.error("%s: feed failed (%s) — %s", show["name"], show["url"], exc)
@@ -543,10 +635,12 @@ def main():
 
     log.info(
         "Done. %d episode(s) added, %d pre-created record(s) filled in, "
-        "%d existing record(s) backfilled. %d feed(s) failed.",
+        "%d existing record(s) backfilled. %d episode page(s) fetched for art. "
+        "%d feed(s) failed.",
         total_created,
         total_claimed,
         total_backfilled,
+        page_image.fetched,
         len(failures),
     )
     if failures:
