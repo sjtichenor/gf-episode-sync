@@ -28,6 +28,7 @@ Environment:
 """
 
 import os
+import re
 import sys
 import time
 import logging
@@ -61,6 +62,7 @@ F_EP_NUMBER = "Episode Number"
 F_EP_LINK = "Full Episode Link"
 F_EP_SHOW = "Show"
 F_EP_GUID = "Feed GUID"
+F_EP_DESC = "Episode Description"
 
 API_ROOT = "https://api.airtable.com/v0"
 TOKEN_VARS = (
@@ -210,6 +212,40 @@ def entry_title(entry):
     return title[:1000] if title else "(untitled episode)"
 
 
+TAG_RE = re.compile(r"<[^>]+>")
+
+
+def entry_description(entry):
+    """
+    Show notes for the episode, HTML stripped.
+
+    Worth capturing because this is where the guest is actually named, and
+    named in a way that separates them from the host -- "Bill Maher sits down
+    with Brian Williams", "Ed Elson is joined by John Mowrey". Episode titles
+    are not a reliable source: they name the host as often as the guest, and
+    plenty of titles have no person in them at all.
+    """
+    raw = ""
+    for key in ("summary", "subtitle", "description"):
+        value = entry.get(key)
+        if value:
+            raw = value
+            break
+    if not raw:
+        content = entry.get("content")
+        if isinstance(content, list) and content:
+            raw = content[0].get("value", "")
+    if not raw:
+        return None
+    text = TAG_RE.sub(" ", raw)
+    text = text.replace("&nbsp;", " ").replace("&amp;", "&")
+    text = text.replace("&lt;", "<").replace("&gt;", ">").replace("&#39;", "'")
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    # Airtable long-text caps around 100k; feeds occasionally paste whole transcripts.
+    return text[:50000] if text else None
+
+
 # --- Sync -------------------------------------------------------------------
 
 
@@ -321,6 +357,9 @@ def plan_for_show(show, known_guids, placeholders, cutoff):
         number = entry_number(entry)
         if number is not None:
             fields[F_EP_NUMBER] = number
+        description = entry_description(entry)
+        if description:
+            fields[F_EP_DESC] = description
 
         # Does a producer-created placeholder already stand for this episode?
         # Only episode number is trustworthy here: placeholder titles are guest
