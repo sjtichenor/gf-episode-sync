@@ -143,6 +143,13 @@ is to reach old rows. Self-limiting, since a row is only backfilled once.
 Adding a new field to the sync means adding it to the `missing` set, and it
 repairs itself over the following runs.
 
+**The limit of this, and it is a real one:** backfill matches on Feed GUID, so
+it only ever reaches rows the sync itself created. The 107 rows imported before
+the sync existed have no GUID and will *never* be repaired by it, no matter how
+many fields are added. Verified 2026-09-04: of the 107 episodes with no Episode
+Art, **all 107 have no Feed GUID** — every synced episode already had art. Those
+rows need a separate one-off fix, or hand editing.
+
 ### Shows and Channels are separate tables
 
 Shows = what we clip **from** (sources). Channels = where we publish **to**
@@ -169,10 +176,18 @@ though exclusivity is guaranteed.
 - 332 episodes, 38 shows, 21 shows with Auto-Add enabled
 - 225 episodes carry a Feed GUID (synced); the rest predate the sync
 - 107 episodes are GF-produced (Video Status = Video Shipped)
-- 119 episodes were `Mineable? = No` before the enclosure fallback shipped;
-  those with a Feed GUID repair themselves as the sync sees them again
-- 100 recent episodes have Episode Art; 61 distinct images before the og:image
-  tier shipped
+- 31 episodes still have no Episode Page, all of them no-GUID placeholder or
+  legacy rows. The 17:00 run on 2026-09-04 backfilled 94 — every GUID-carrying
+  row that was missing one — so the enclosure fallback is confirmed working
+  end to end
+- 107 episodes have no Episode Art, all no-GUID legacy rows: 10X Capital
+  Podcast, Trading Places and BG2Pod, plus one orphan with no Show link.
+  All three shows have a Podcast Logo, so 106 are fillable from show art
+- 61 distinct images across the 100 most recent episodes, measured *before* the
+  og:image tier shipped. Not yet re-measured: the first run after it deployed
+  fetched only 1 page, because art was already complete on every GUID-carrying
+  row. The tier only affects episodes synced from now on, so its value rests on
+  the pre-ship Breaking Points test (1 distinct image across 4 episodes -> 4)
 - 104 episodes have a YouTube Link
 - Zero episodes have a transcript
 
