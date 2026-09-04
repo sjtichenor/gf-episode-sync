@@ -180,8 +180,9 @@ though exclusivity is guaranteed.
   legacy rows. The 17:00 run on 2026-09-04 backfilled 94 — every GUID-carrying
   row that was missing one — so the enclosure fallback is confirmed working
   end to end
-- 13 episodes have no Episode Art, down from 107. The other 94 were filled on
-  2026-09-04 with genuine per-episode art, not show logos (see below)
+- 5 episodes have no Episode Art, down from 107. The other 102 were filled on
+  2026-09-04 with genuine per-episode art, not show logos: 96 square and 6 at
+  16:9 (see below)
 - 61 distinct images across the 100 most recent episodes, measured *before* the
   og:image tier shipped. Not yet re-measured: the first run after it deployed
   fetched only 1 page, because art was already complete on every GUID-carrying
@@ -234,20 +235,45 @@ Hunter Somerville each appear twice in the feed at numbers different from ours.
 Where a row was only a guest name, the match was confirmed by finding that name
 in the feed item's description.
 
-The 13 still empty, and why:
+### YouTube thumbnails, used only where nothing square exists
 
-- **BG2Pod (5)** — its feed sets no per-episode art at all, on any of 44 items.
-  Show logo is the only option that exists.
-- **Trading Places (6)** — Dropbox and Airtable disagree, so a human should
-  look: EP01 David Zhou has no square thumbnail; Airtable #14 is "Michael
-  Burry" but Dropbox EP14 is "Thanksgiving Episode"; there are *two* EP19
-  folders (Nate & Karin, Noel Moldvai) against Airtable's #19 Nathan Lustig;
-  #20 2NDARY Roundtable's folder holds no square thumbnail while an
+Six rows took a 16:9 YouTube thumbnail (`img.youtube.com/vi/<id>/maxresdefault.jpg`,
+no API key needed) because no square alternative exists for them: the five
+BG2Pod episodes, whose feed sets no per-episode art on any of 44 items, and
+"Ron Diamond #2". These come from the YouTube Link already on the record, so
+there is no matching to get wrong.
+
+This does not contradict rejecting YouTube thumbnails for the gallery. That
+decision was about *replacing* square art and making every card a different
+shape. Here the alternative was an empty cell, and a 16:9 tile beats a hole.
+The ratio is 96 square to 6 at 16:9, so the grid still reads as square.
+
+Two more were filled from Dropbox after a closer look: EP01 David Zhou has no
+file named "Square" but does have a **"David Zhou Spotify Thumbnail"**, which is
+1080x1080 — Spotify episode art is square, so that naming is worth checking
+whenever a "Square" file is missing. EP31's folder ("EP31 -") is unambiguous by
+number despite the row still being titled TBC.
+
+### Trading Places YouTube links are dead
+
+Their channel was banned and the show moved to a new one. Every TP link tested
+returned no thumbnail — EP01, EP14, EP19, EP20, EP28, five for five, not the two
+originally noted. Assume the ~100 YouTube links on TP rows are all dead until
+someone re-points them at the new channel. This also means `Mineable?` counts a
+YouTube link that no longer resolves.
+
+The 5 still empty, all needing a human:
+
+- **Trading Places (4)** — Dropbox and Airtable disagree and the YouTube links
+  are dead, so there is no third source to break the tie. Airtable #14 is
+  "Michael Burry" but Dropbox EP14 is "Thanksgiving Episode"; there are *two*
+  EP19 folders (Nate & Karin, Noel Moldvai) against Airtable's #19 Nathan
+  Lustig; #20 2NDARY Roundtable's own folder holds no square thumbnail while an
   "EP20 Square Thumbnail" file sits inside the EP19 Noel Moldvai folder; and
-  #28/#31 are still titled TBC, with EP28's thumbnail named for Shri Bashyam,
-  who is #29.
-- **10X (1)** — "Ron Diamond #2" matches two feed episodes.
-- **The First (1)** — no Show link at all.
+  #28 is titled TBC with its thumbnail named for Shri Bashyam, who is #29.
+  These cluster around the missing #18 (James Riney), which Dropbox *does* have
+  a folder and thumbnail for — the likely root cause is that off-by-one.
+- **The First (1)** — no Show link at all, and the client never launched.
 
 **Data gaps found along the way:**
 
