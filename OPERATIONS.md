@@ -238,6 +238,40 @@ Watchlist. **Order matters:** add "Don't Mine" to Mining Priority and set the
 four shows *before* deleting the Relationship option, because deleting a select
 choice clears every cell using it.
 
+### Linking clips to their full episodes
+
+Videos has a link to Full Episodes (`flda34XvSlQaFXapj`). On 2026-09-04, 112
+clips were linked automatically and the rest was measured before anyone was
+hired to do it by hand. The measurement is the useful part:
+
+- **5,478 videos**, of which 351 carry an Episode Number on a channel that maps
+  to a show.
+- **Videos link to Channels, Full Episodes link to Shows**, and a channel does
+  not identify a source. Client channels are 1:1 (David Weisburd -> How I
+  Invest, 141 videos) but GF-owned channels aggregate: Good Politics has 1,002
+  videos cut from many different shows. Only a person watching the clip can say
+  which show it came from.
+- Only **6 shows** have both a channel and full episodes — 10X (71 episodes),
+  Trading Places (36), 20VC (13), All-In (10), ThursdAI (6), BG2 (5).
+- Matching on Show + Episode Number gave **112 exact matches and zero
+  ambiguous** (10X 77, BG2 35). Trading Places, 20VC, All-In and ThursdAI
+  contributed none: either their clips carry no number or their episode records
+  do not.
+
+**The reason hand-linking the rest would mostly fail:** only **76 of 332 full
+episodes have an air date before 2026**, because the sync's 30-day lookback
+means everything else is from the last few weeks. The clips are from 2022-2025.
+For most clips the episode record simply does not exist, so a person would spend
+their time discovering absence, not linking.
+
+The work that would actually unlock this is therefore **not** manual linking —
+it is importing the back catalogue for those shows first, then re-running the
+match. 239 clips already carry a number with no episode record to match
+(All-In 150, BG2 49, 10X 40); those become free matches the moment the archive
+exists. Whether that works per show depends on the feed carrying
+`itunes:episode` — All-In's current records have no numbers, so test before
+promising.
+
 ### Mining status is separate from Video Status
 
 `Video Status` = "we are editing this full episode", only meaningful for the 107
