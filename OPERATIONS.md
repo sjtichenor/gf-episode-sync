@@ -228,10 +228,24 @@ wrong thumbnail too. Measured 2026-09-05 against recent episodes:
 
 Breaking Points is the important row: it re-cuts and re-titles segments for
 YouTube, so the video genuinely is not the episode. Shows like that should be
-left with no channel. Ten shows were filled in on 2026-09-05; Pivot, ThursdAI
-and Trading Places were deliberately left blank because handle lookups returned
-channels whose titles did not match the show, and Trading Places' own channel
-was banned.
+left with no channel.
+
+Thirteen shows have a channel as of 2026-09-05. Three were added after Spencer
+supplied host names, each verified by scoring the channel's titles against the
+show's own feed rather than trusting the handle:
+
+| Show | Channel | Recent match rate |
+| --- | --- | --- |
+| Conversations with Tyler | Mercatus Center | 5/5 at 1.00 |
+| Founders | David Senra's channel, not @FoundersPodcast (which has no uploads) | 2/5 |
+| ThursdAI | @altryne, the host's channel | 1/5 |
+
+Left blank on purpose, because the lookups returned something wrong and a wrong
+channel means wrong links *and* wrong thumbnails: **Pivot** (@pivotpod is
+"JPivots", one unrelated video), **The Morning Meeting** (@themorningmeeting
+scored 0/5 against the feed), **This Week in Startups** (right channel, but its
+latest video says the show has moved elsewhere, so links would point at a dead
+channel), **EconTalk** (nothing resolved), **Trading Places** (channel banned).
 
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
@@ -562,12 +576,12 @@ The 5 still empty, all needing a human:
   broadcast), Monitoring the Situation (X only), Genfinity, Solana Ecosystem
   Calls, The First (client that never launched).
 - **10X Capital Podcast was renamed "How I Invest with David Weisburd."** Its
-  feed was not dead, just abandoned. The live feed is
-  `https://feeds.podcastai.com/LaVYz9xBOj9Q4toB4HfKrC.xml` — a continuation
-  carrying E1-E425 with the original numbering intact, so old episodes still
-  resolve by number. The Shows record still points at the old dead feed
-  (`ZxTOyNz8AEfEo1okVWwEXC.xml`); switching it resumes syncing, and with
-  Auto-Add already on that starts importing new episodes immediately.
+  feed was not dead, just abandoned. Switched on 2026-09-05: the Shows record is
+  renamed and now points at
+  `https://feeds.podcastai.com/LaVYz9xBOj9Q4toB4HfKrC.xml`, a continuation
+  carrying E1-E425 with the original numbering intact. Auto-Add is on, so new
+  episodes import hourly; its Mining Priority is "Don't Mine", so they arrive
+  without being queued for anyone.
 - BG2's feed has not published in 83 days.
 - Roughly 107 rows predate the sync and have no Feed GUID. All are older than
   the lookback window, so they neither match nor duplicate anything — but they
@@ -577,7 +591,16 @@ The 5 still empty, all needing a human:
 **Parked by decision:**
 
 - Deleting the 108 `Video Type = Full Episode` rows from the Videos table.
-  Before doing it: 28 of them carry social posts with real view counts, and
-  Team-level editor stats (Videos Edited, Total Views as Editor, the 100k+/1M+
-  counts) all roll up from Videos and will drop. Decide first whether those
-  stats should count full episodes.
+  Verified 2026-09-05, and the case against has got stronger:
+  - **28 of them carry two social posts each with real view counts** — Nik
+    Talreja 19,200, Sim Desai 17,823, Shri Bashyam 16,546 and so on. These are
+    the Trading Places full episodes. Deleting the row breaks those Post links.
+  - **Team stats roll up from the Videos link** (`fld5keLdkNCErvCcu`): four
+    counts of videos edited, four rollups of views as editor, and the editing
+    hours total. Deleting 108 rows lowers those numbers for Dean Jeffer Xyre
+    Rivera, Michael II, Jackridz Reyes and Chris P Madden, who edited them.
+
+  The real question is whether an editor's stats should count full episodes they
+  cut, or only clips. Recommendation: **do not delete.** 108 rows out of 5,478
+  cost nothing, Full Episodes is already the canonical record, the clips are
+  linked to it, and deletion is irreversible while tidiness is not urgent.
