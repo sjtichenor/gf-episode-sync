@@ -16,13 +16,17 @@ first:
 | Table | Fields the sync writes or reads by name |
 | --- | --- |
 | Shows (`tblKMC5hDmmc7YsVW`) | Show Name, RSS Feed URL, Auto-Add Episodes |
-| Full Episodes (`tblHBczQjSraq5hWe`) | Episode Title, Air Date, Episode Number, Episode Page, Show, Feed GUID, Episode Description, Episode Art |
+| Full Episodes (`tblHBczQjSraq5hWe`) | Episode Title, Air Date, Episode Number, Episode Page, Show, Feed GUID, Episode Description, Episode Art, **YouTube Link** |
 
 This already happened once: renaming *Full Episode Link* to *Episode Page* broke
 it until the constant was updated in the same breath.
 
-Everything else on Full Episodes — Miner, Mining Status, YouTube Link, Director,
-Client Account, and the rest — is untouched by the sync and safe to rename.
+`YouTube Link` joined that list on 2026-09-04, when the YouTube thumbnail became
+the primary image source — the sync only reads it, never writes it, but renaming
+it silently stops every episode getting its thumbnail.
+
+Everything else on Full Episodes — Miner, Mining Status, Director, Client
+Account, and the rest — is untouched by the sync and safe to rename.
 
 Table *ids* are used rather than names, so renaming a table is safe. The Social
 Media Accounts table was renamed to Channels with no effect.
@@ -98,9 +102,38 @@ which carries VIP flags and client relationships. Detected names belong in their
 own text field; link only exact matches to existing Contacts, and never
 auto-create a Contact.
 
-### Episode art is square, in three tiers
+### Episode art: YouTube first, then three square tiers
 
-Tiers: the item's own art → the episode page's `og:image` → the show's art.
+Order: **the YouTube thumbnail** → the item's own feed art → the episode page's
+`og:image` → the show's art.
+
+YouTube was made primary on 2026-09-04 at Spencer's request. It is a deliberate
+trade: the thumbnail is the image the team actually designed for that episode,
+and that was judged worth more than a uniform grid. The earlier reasoning
+against it (below) was about card shape, and still describes the cost.
+
+Two things make this safe, and both are load-bearing:
+
+- **A dead video falls through instead of overwriting.** YouTube answers for
+  *every* id, serving a small grey placeholder when the video is gone, so a 200
+  proves nothing — response size is the only thing that separates a real
+  thumbnail from a placeholder. All 28 Trading Places links are dead after their
+  channel ban; without the size check, every one would have been replaced with a
+  grey rectangle.
+- **It runs as its own pass, not inside the feed loop**, so it reaches the
+  pre-sync rows with no Feed GUID, which is most of what has a YouTube link.
+
+A newly created episode has no YouTube link yet, so it takes feed art at
+creation and is upgraded on a later run once someone adds one. Art already named
+`yt-<id>.jpg` is skipped without a network call, so the steady-state cost is
+near zero. `MAX_YOUTUBE_THUMBNAIL_CHECKS` (default 60) caps the rest.
+
+As applied to the 104 rows with a link: **76 took a YouTube thumbnail, 28 kept
+what they had** — the whole Trading Places set. The grid is now mixed rather
+than uniformly square.
+
+The square tiers below still run, and are what every episode without a video
+gets:
 
 - Podcast art is square by spec, 3000×3000 in practice, so the fallback never
   changes the shape of a card. An Airtable gallery takes its cover from **one**
@@ -115,10 +148,12 @@ Tiers: the item's own art → the episode page's `og:image` → the show's art.
 - Page fetches are budgeted (`MAX_PAGE_IMAGE_FETCHES`, default 60/run) so a
   first backfill does not fetch a page for every artless episode at once.
 
-**YouTube thumbnails were measured and rejected** for the gallery: 1280×720 or
-480×360, so mixing them with square art gives every card a different shape. Only
-104 of 332 episodes have a YouTube link, and all of them are older than the
-gallery's 30-day window, so they would not have improved what directors see.
+**The original argument against YouTube thumbnails**, kept because it is the
+cost being accepted rather than a mistake: they are 1280×720 or 480×360, so
+mixing them with square art gives cards different shapes, and only 104 of 332
+episodes have a link — all older than the mining interface's 30-day window, so
+they do not change what directors see each morning. Overridden deliberately on
+2026-09-04 in favour of showing the image made for each episode.
 
 ### Episode Page falls back to the audio file
 
