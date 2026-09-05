@@ -16,7 +16,7 @@ first:
 | Table | Fields the sync writes or reads by name |
 | --- | --- |
 | Shows (`tblKMC5hDmmc7YsVW`) | Show Name, RSS Feed URL, Auto-Add Episodes |
-| Full Episodes (`tblHBczQjSraq5hWe`) | Episode Title, Air Date, Episode Number, Episode Page, Show, Feed GUID, Episode Description, Episode Art, **YouTube Link** |
+| Full Episodes (`tblHBczQjSraq5hWe`) | Episode Title, Air Date, Episode Number, Episode Page, Show, Feed GUID, Episode Description, Episode Art, **YouTube Link**, **Episode Length** |
 
 This already happened once: renaming *Full Episode Link* to *Episode Page* broke
 it until the constant was updated in the same breath.
@@ -204,6 +204,17 @@ was in use. Listing the field unfiltered and counting gave the right answer.
 When a count drives a decision — especially a destructive one — list and count
 rather than filter.
 
+### Episode Length comes from the feed, not YouTube
+
+`itunes:duration` is on **13,396 of 13,398 items across all 21 feeds** — 99.98%
+— so there is no reason to ask YouTube for it. Stored in `Episode Length`
+(`fld4Pl9XjwPnV2l2Q`, duration, h:mm:ss).
+
+Publishers use three shapes for that tag and all three appear in our feeds:
+`3600`, `60:00` and `1:00:00`. `entry_duration` parses by counting colons rather
+than assuming a format, and rejects zero or anything over 24 hours, since a few
+feeds emit junk.
+
 ### Mining priority lives on the show, not the episode
 
 `Mining Priority` (High / Medium / Low) is a field on **Shows**
@@ -220,11 +231,20 @@ records ever had a value — so nothing was migrated. It survives as
 "Mining Priority (old - safe to delete)" only because the API cannot delete
 fields.
 
-The cost of this design, worth knowing before someone asks for it back: there is
-now no way to mark a *single* episode as unusually worth mining. If that need
-appears, add a separate episode-level override rather than reviving the old
-field, and make the interface prefer the override when set — otherwise two
-fields with the same name compete and neither reads as authoritative.
+**That override was added on 2026-09-05**, as anticipated, for the case where one
+interview is worth jumping on. Three fields now, and the split matters:
+
+| Field | Type | Who sets it |
+| --- | --- | --- |
+| `Mining Priority (from Show)` (`fld0sSkrGcxg1KLXd`) | lookup | nobody — inherited |
+| `Mining Priority Override` (`fldQXtJWL4eNlaBkL`) | single select | a person, per episode, only when it differs |
+| `Mining Priority` (`fld6rh4X1MyDhfyv0`) | formula | nobody — this is what interfaces use |
+
+The formula takes the override when set and the show's value otherwise, so an
+episode follows its show unless someone deliberately says otherwise, and there
+is still one source of truth per show. It outputs `1 - High` / `2 - Medium` /
+`3 - Low` so it sorts by urgency instead of alphabetically, matching the
+`0 - Quick Repost` / `1 - Basic` convention already used in Videos.
 
 **A gap this leaves:** `Relationship` on Shows carries a "Don't Mine" option,
 which is the bottom of this same scale living in the field that otherwise
@@ -325,18 +345,34 @@ anything from a feed.
 
 **The limit is input, not method.** Transcripts in the feed, measured:
 
+Re-measured 2026-09-05 using the **real feed URLs from the Shows table**. An
+earlier version of this table was wrong because several URLs were guessed and
+404'd, and a 404 was recorded as "no transcripts":
+
 | Show | Items | With `podcast:transcript` |
 | --- | --- | --- |
+| **Breaking Points** | 1,668 | **all of them** (4,992 tags, ~3 formats each) |
 | 10X / How I Invest | 425 | **425** |
 | Diary Of A CEO | 880 | 147 |
 | Trading Places | 48 | 31 |
-| All-In, 20VC, BG2Pod, Founders, Making Sense, Pivot, Pod Save America | — | **0** |
+| Conversations with Tyler | 299 | 2 |
+| 20VC, All-In, BG2, Club Random, EconTalk, Founders, Making Sense, Pivot, Pod Save America, Pod Save the World, Prof G Markets, Talking Tokens, The Huddle, The Morning Meeting, Theo Von, This Week in Startups, ThursdAI | — | 0 |
 
-So only 10X can be automated from the feed alone. For the rest the episode side
-has to be transcribed first — YouTube captions where the episodes are on a live
-channel, otherwise ASR. That is cheap next to a person (a 2-hour episode is
-minutes of compute), and the clip side already has transcripts on 3,493 of 5,478
-videos.
+Breaking Points having full coverage matters more than 10X did: it is a main
+source for the Good Politics channel, which is the largest pile of unlinked
+clips (1,002).
+
+**YouTube is not a route to transcripts for these.** The Data API's
+`captions.download` requires OAuth *as the video's owner*, so an API key cannot
+fetch captions for shows GF does not own — which is exactly the set needed. The
+old `video.google.com/timedtext` endpoint now returns 200 with an empty body.
+Caption URLs are still embedded in the watch page HTML, so scraping works, but
+that is against YouTube's terms and breaks whenever the page changes. Prefer the
+RSS transcripts, which are published deliberately for this purpose.
+
+For shows with neither, the episode side has to be transcribed with ASR. That is
+cheap next to a person, and the clip side already has transcripts on 3,493 of
+5,478 videos.
 
 ### Mining status is separate from Video Status
 

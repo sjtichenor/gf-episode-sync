@@ -68,6 +68,7 @@ F_EP_GUID = "Feed GUID"
 F_EP_DESC = "Episode Description"
 F_EP_ART = "Episode Art"
 F_EP_YOUTUBE = "YouTube Link"
+F_EP_LENGTH = "Episode Length"
 
 API_ROOT = "https://api.airtable.com/v0"
 TOKEN_VARS = (
@@ -214,6 +215,31 @@ def entry_link(entry):
         if href:
             return href
     return ""
+
+
+def entry_duration(entry):
+    """
+    Run time in seconds from itunes:duration, or None.
+
+    Publishers use three shapes for this tag -- "3600", "60:00" and "1:00:00" --
+    and all three appear across our feeds, so parse by counting colons rather
+    than assuming one. Measured 2026-09-05: 13,396 of 13,398 items across all 21
+    feeds carry it, so a blank here is worth noticing.
+    """
+    raw = (entry.get("itunes_duration") or "").strip()
+    if not raw:
+        return None
+    try:
+        parts = [float(p) for p in raw.split(":")]
+    except ValueError:
+        return None
+    if not parts or any(p < 0 for p in parts):
+        return None
+    seconds = 0.0
+    for part in parts:            # h:mm:ss, mm:ss or plain seconds
+        seconds = seconds * 60 + part
+    # A few feeds emit 0 or something absurd; treat those as no value.
+    return int(seconds) if 0 < seconds < 24 * 3600 else None
 
 
 def entry_air_date(entry):
@@ -550,6 +576,7 @@ def load_episode_index(at):
             F_EP_DESC,
             F_EP_ART,
             F_EP_LINK,
+            F_EP_LENGTH,
         ],
     ):
         fields = record.get("fields", {})
@@ -563,6 +590,8 @@ def load_episode_index(at):
                 missing.add(F_EP_ART)
             if not (fields.get(F_EP_LINK) or "").strip():
                 missing.add(F_EP_LINK)
+            if not fields.get(F_EP_LENGTH):
+                missing.add(F_EP_LENGTH)
             if missing:
                 incomplete[guid] = (record["id"], missing)
             continue
@@ -632,6 +661,10 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
                     link = entry_link(entry)
                     if link:
                         repair[F_EP_LINK] = link
+                if F_EP_LENGTH in missing:
+                    seconds = entry_duration(entry)
+                    if seconds:
+                        repair[F_EP_LENGTH] = seconds
                 if repair:
                     backfills.append((record_id, repair))
             continue
@@ -650,6 +683,9 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
         link = entry_link(entry)
         if link:
             fields[F_EP_LINK] = link
+        seconds = entry_duration(entry)
+        if seconds:
+            fields[F_EP_LENGTH] = seconds
         number = entry_number(entry)
         if number is not None:
             fields[F_EP_NUMBER] = number
