@@ -67,6 +67,7 @@ F_EP_SHOW = "Show"
 F_EP_GUID = "Feed GUID"
 F_EP_DESC = "Episode Description"
 F_EP_ART = "Episode Art"
+F_EP_YOUTUBE = "YouTube Link"
 
 API_ROOT = "https://api.airtable.com/v0"
 TOKEN_VARS = (
@@ -79,6 +80,7 @@ TOKEN_VARS = (
 LOOKBACK_DAYS = int(os.environ.get("EPISODE_LOOKBACK_DAYS", "30"))
 MAX_NEW_PER_SHOW = int(os.environ.get("MAX_NEW_EPISODES_PER_SHOW", "25"))
 PAGE_IMAGE_BUDGET = int(os.environ.get("MAX_PAGE_IMAGE_FETCHES", "60"))
+YOUTUBE_BUDGET = int(os.environ.get("MAX_YOUTUBE_THUMBNAIL_CHECKS", "60"))
 DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "True", "yes")
 
 USER_AGENT = "GoodFutureMedia-EpisodeSync/1.0 (+https://goodfuturemedia.com)"
@@ -414,6 +416,114 @@ def load_shows(at):
     return shows
 
 
+YOUTUBE_ID_RE = re.compile(
+    r"""(?:youtu\.be/|/embed/|/shorts/|/live/|[?&]v=)([A-Za-z0-9_-]{11})"""
+)
+
+
+def youtube_id(link):
+    """The 11-character video id from any of YouTube's URL shapes."""
+    m = YOUTUBE_ID_RE.search(link or "")
+    return m.group(1) if m else None
+
+
+def youtube_art_filename(video_id):
+    """Marks an attachment as already being this video's thumbnail."""
+    return f"yt-{video_id}.jpg"
+
+
+def youtube_thumbnail(video_id):
+    """
+    The thumbnail URL for a video, or None when there is no real image.
+
+    YouTube answers for *every* id, serving a tiny grey placeholder when the
+    video is gone, so a 200 proves nothing and the size is what distinguishes
+    them. This matters here: Trading Places' channel was banned and all 28 of
+    its links are dead, and a placeholder would look like art while being a
+    grey rectangle.
+    """
+    for quality in ("maxresdefault", "hqdefault"):
+        url = f"https://img.youtube.com/vi/{video_id}/{quality}.jpg"
+        try:
+            resp = requests.get(url, timeout=20, headers={"User-Agent": USER_AGENT})
+        except requests.RequestException:
+            return None
+        if resp.status_code == 200 and len(resp.content) > 8000:
+            return url
+    return None
+
+
+def upgrade_youtube_art(at, budget):
+    """
+    Point Episode Art at the episode's YouTube thumbnail wherever one exists.
+
+    The YouTube thumbnail is the preferred image for an episode; feed art, the
+    page's og:image and the show logo are fallbacks for when there is no video.
+
+    This is a pass of its own rather than part of the feed loop, because it has
+    to reach rows the feed cannot match -- the pre-sync imports with no Feed
+    GUID, which is most of what has a YouTube link. It is also why newly created
+    episodes are unaffected at creation: nobody has added a link yet, so they
+    take feed art now and get upgraded on a later run.
+
+    Rows whose art is already `yt-<id>.jpg` are skipped without a network call,
+    so the steady-state cost is near zero.
+    """
+    updates, checked, dead = [], 0, []
+
+    for record in at.list_records(
+        EPISODES_TABLE, fields=[F_EP_YOUTUBE, F_EP_ART, F_EP_TITLE]
+    ):
+        fields = record.get("fields", {})
+        video_id = youtube_id((fields.get(F_EP_YOUTUBE) or "").strip())
+        if not video_id:
+            continue
+
+        wanted = youtube_art_filename(video_id)
+        current = fields.get(F_EP_ART) or []
+        if any((a.get("filename") or "") == wanted for a in current):
+            continue  # already this video's thumbnail
+
+        if checked >= budget:
+            log.info(
+                "YouTube art: budget of %d checks reached, remainder next run.",
+                budget,
+            )
+            break
+        checked += 1
+
+        url = youtube_thumbnail(video_id)
+        if not url:
+            # Kept as one summary line rather than a warning each: 28 of these
+            # are Trading Places' banned channel and will fail every run, and
+            # per-episode warnings would bury anything that actually matters.
+            dead.append(fields.get(F_EP_TITLE) or record["id"])
+            continue
+
+        updates.append(
+            (record["id"], {F_EP_ART: [{"url": url, "filename": wanted}]})
+        )
+
+    if updates and not DRY_RUN:
+        at.update_records(EPISODES_TABLE, updates)
+    if checked:
+        log.info(
+            "YouTube art: %d checked, %d updated, %d link(s) with no thumbnail.",
+            checked,
+            len(updates),
+            len(dead),
+        )
+    if dead:
+        sample = ", ".join(t[:40] for t in dead[:5])
+        log.info(
+            "YouTube art: no thumbnail for %d episode(s), existing art kept — %s%s",
+            len(dead),
+            sample,
+            ", …" if len(dead) > 5 else "",
+        )
+    return len(updates)
+
+
 def load_episode_index(at):
     """
     Two views of Full Episodes:
@@ -603,6 +713,7 @@ def main():
 
     page_image = PageImageFinder(PAGE_IMAGE_BUDGET)
     total_created, total_claimed, total_backfilled, failures = 0, 0, 0, []
+    total_youtube = upgrade_youtube_art(at, YOUTUBE_BUDGET)
 
     for show in shows:
         try:
@@ -668,11 +779,12 @@ def main():
 
     log.info(
         "Done. %d episode(s) added, %d pre-created record(s) filled in, "
-        "%d existing record(s) backfilled. %d episode page(s) fetched for art. "
-        "%d feed(s) failed.",
+        "%d existing record(s) backfilled, %d given YouTube art. "
+        "%d episode page(s) fetched for art. %d feed(s) failed.",
         total_created,
         total_claimed,
         total_backfilled,
+        total_youtube,
         page_image.fetched,
         len(failures),
     )
