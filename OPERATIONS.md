@@ -299,6 +299,30 @@ and its distinctive phrase "weirdly the easiest" appears in none of them — so
 its episode number is wrong. Some of the 112 number-based links are therefore
 wrong too, and this method finds them.
 
+**Run end to end on 10X, 2026-09-05.** All 141 clips on the David Weisburd
+channel, scored against 419 usable episode transcripts:
+
+| Outcome | Clips |
+| --- | --- |
+| matched, agrees with the existing Episode Number | 100 |
+| matched, had no number before | 10 |
+| **matched, contradicts the number** | **0** |
+| no confident match | 12 |
+| transcript missing or under 40 words | 19 |
+
+Zero contradictions across 100 overlapping cases is the real result: the
+number-based links written earlier are corroborated, not undermined. An earlier
+note here claimed some were probably wrong — that was overstated. The one
+suspicious clip is *unverifiable* (its content is in no episode in the archive),
+which is not the same as provably mis-numbered.
+
+Acting on it added 39 links, taking Videos from 112 linked to **151**. Those 39
+needed 14 episodes that were not in the table — but **9 of the 14 already
+existed as unnumbered rows** (Chris Dion, James Langer, Victor Mayer and the
+rest, which are E114-E122). Creating all 14 would have duplicated them. Only 5
+were genuinely new. Check for unnumbered rows of the same show before creating
+anything from a feed.
+
 **The limit is input, not method.** Transcripts in the feed, measured:
 
 | Show | Items | With `podcast:transcript` |
