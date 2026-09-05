@@ -193,6 +193,35 @@ Optimist, Steelman…). About 8 names appear in both because for a client we bot
 clip their show and run their channels — that overlap is real, not a modelling
 error. Linked via the `Channels` field on Shows.
 
+### Mining priority lives on the show, not the episode
+
+`Mining Priority` (High / Medium / Low) is a field on **Shows**
+(`fld5uPh0EBeZXEDY8`). Full Episodes sees it through a read-only lookup of the
+same name (`fld0sSkrGcxg1KLXd`) via the Show link.
+
+This is deliberate and Spencer's call, 2026-09-04: *"I don't think we're going
+to have time to be picking which full episode specifically are high priority,
+it's more about certain shows."* One value per show sets the priority for every
+episode of it at once, and nobody has to triage 332 rows.
+
+An episode-level `Mining Priority` did exist and was never used — zero of 332
+records ever had a value — so nothing was migrated. It survives as
+"Mining Priority (old - safe to delete)" only because the API cannot delete
+fields.
+
+The cost of this design, worth knowing before someone asks for it back: there is
+now no way to mark a *single* episode as unusually worth mining. If that need
+appears, add a separate episode-level override rather than reviving the old
+field, and make the interface prefer the override when set — otherwise two
+fields with the same name compete and neither reads as authoritative.
+
+**A gap this leaves:** `Relationship` on Shows carries a "Don't Mine" option,
+which is the bottom of this same scale living in the field that otherwise
+describes the commercial relationship. It is used by **zero of 74 shows**, so
+nothing depends on it today. Cleanest fix is to add "Don't Mine" to Mining
+Priority and drop the Relationship option — otherwise a former client you still
+clip has no honest way to be recorded.
+
 ### Mining status is separate from Video Status
 
 `Video Status` = "we are editing this full episode", only meaningful for the 107
@@ -234,6 +263,10 @@ though exclusivity is guaranteed.
 
 - Delete `Claimed By` and `Claimed By (User)` — redundant with `Miner`. Nothing
   references them. Airtable's API has no delete-field endpoint.
+- Delete `Mining Priority (old - safe to delete)` on Full Episodes — the
+  episode-level field, superseded by the lookup from Shows. Never held data.
+- Fill in `Mining Priority` on Shows. It is empty on all 74; until it is set,
+  the lookup shows nothing and cannot sort the interface.
 - Delete `Active` on Shows — its job is covered by `Relationship` (now including
   Former Client) and `Auto-Add Episodes`. Only 2 of 74 rows were ever set.
 - Create the `Guest (detected)` Generate-content field, **auto-generation off**
