@@ -15,7 +15,7 @@ first:
 
 | Table | Fields the sync writes or reads by name |
 | --- | --- |
-| Shows (`tblKMC5hDmmc7YsVW`) | Show Name, RSS Feed URL, Auto-Add Episodes |
+| Shows (`tblKMC5hDmmc7YsVW`) | Show Name, RSS Feed URL, Auto-Add Episodes, **YouTube Channel** |
 | Full Episodes (`tblHBczQjSraq5hWe`) | Episode Title, Air Date, Episode Number, Episode Page, Show, Feed GUID, Episode Description, Episode Art, **YouTube Link**, **Episode Length** |
 
 This already happened once: renaming *Full Episode Link* to *Episode Page* broke
@@ -204,6 +204,38 @@ was in use. Listing the field unfiltered and counting gave the right answer.
 When a count drives a decision — especially a destructive one — list and count
 rather than filter.
 
+### YouTube Links are filled from the channel's uploads feed, not the API
+
+`YouTube Channel` on Shows (`fldGzPNoD9LwSobL4`) takes a handle, URL or `UC...`
+id. The sync resolves it to a channel id — the id is in the channel page HTML,
+so no key is needed — then reads
+`youtube.com/feeds/videos.xml?channel_id=...`, which needs no key and no quota
+and returns the ~15 most recent uploads. For an hourly sync filling episodes
+published in the last few weeks, 15 is plenty. **The Data API is not used**, and
+its quota (`search.list` costs 100 units against a 10,000/day default) is a good
+reason to keep it that way. The API would only be needed to reach deeper than
+those 15.
+
+A match needs both a strong title overlap and a date within 7 days, because a
+wrong video is worse than none: it looks right, and it would then produce the
+wrong thumbnail too. Measured 2026-09-05 against recent episodes:
+
+| Show | Matched | Note |
+| --- | --- | --- |
+| BG2Pod | 6 of 6, all 1.00 | titles identical |
+| All-In | 4 of 6, 0.92+ | two had no video that week |
+| Breaking Points | **0** | correctly refused |
+
+Breaking Points is the important row: it re-cuts and re-titles segments for
+YouTube, so the video genuinely is not the episode. Shows like that should be
+left with no channel. Ten shows were filled in on 2026-09-05; Pivot, ThursdAI
+and Trading Places were deliberately left blank because handle lookups returned
+channels whose titles did not match the show, and Trading Places' own channel
+was banned.
+
+Because this runs before the art pass, an episode that gets a link also gets its
+thumbnail in the same run.
+
 ### Episode Length comes from the feed, not YouTube
 
 `itunes:duration` is on **13,396 of 13,398 items across all 21 feeds** — 99.98%
@@ -358,9 +390,11 @@ earlier version of this table was wrong because several URLs were guessed and
 | Conversations with Tyler | 299 | 2 |
 | 20VC, All-In, BG2, Club Random, EconTalk, Founders, Making Sense, Pivot, Pod Save America, Pod Save the World, Prof G Markets, Talking Tokens, The Huddle, The Morning Meeting, Theo Von, This Week in Startups, ThursdAI | — | 0 |
 
-Breaking Points having full coverage matters more than 10X did: it is a main
-source for the Good Politics channel, which is the largest pile of unlinked
-clips (1,002).
+Breaking Points' 1,668 items are full shows, not segments — median 70 minutes,
+1,412 of them over 45 — because they publish two or three a day. But the earlier
+claim here that they are "a main source for Good Politics" was an inference that
+was never measured, and Spencer says they are clipped only occasionally. Which
+shows the Good Politics clips actually come from is still unmeasured.
 
 **YouTube is not a route to transcripts for these.** The Data API's
 `captions.download` requires OAuth *as the video's owner*, so an API key cannot

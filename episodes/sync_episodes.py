@@ -57,6 +57,7 @@ EPISODES_TABLE = "tblHBczQjSraq5hWe"
 F_SHOW_NAME = "Show Name"
 F_RSS_URL = "RSS Feed URL"
 F_AUTO_ADD = "Auto-Add Episodes"
+F_SHOW_YOUTUBE = "YouTube Channel"
 
 # Full Episodes
 F_EP_TITLE = "Episode Title"
@@ -82,9 +83,16 @@ LOOKBACK_DAYS = int(os.environ.get("EPISODE_LOOKBACK_DAYS", "30"))
 MAX_NEW_PER_SHOW = int(os.environ.get("MAX_NEW_EPISODES_PER_SHOW", "25"))
 PAGE_IMAGE_BUDGET = int(os.environ.get("MAX_PAGE_IMAGE_FETCHES", "60"))
 YOUTUBE_BUDGET = int(os.environ.get("MAX_YOUTUBE_THUMBNAIL_CHECKS", "60"))
+YT_TITLE_THRESHOLD = float(os.environ.get("YOUTUBE_TITLE_MATCH", "0.5"))
+YT_DAY_WINDOW = int(os.environ.get("YOUTUBE_MATCH_DAYS", "7"))
 DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "True", "yes")
 
 USER_AGENT = "GoodFutureMedia-EpisodeSync/1.0 (+https://goodfuturemedia.com)"
+# YouTube serves its channel pages differently to non-browser agents.
+BROWSER_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+)
 
 
 def get_token():
@@ -420,7 +428,7 @@ def entry_description(entry):
 def load_shows(at):
     shows = []
     for record in at.list_records(
-        SHOWS_TABLE, fields=[F_SHOW_NAME, F_RSS_URL, F_AUTO_ADD]
+        SHOWS_TABLE, fields=[F_SHOW_NAME, F_RSS_URL, F_AUTO_ADD, F_SHOW_YOUTUBE]
     ):
         fields = record.get("fields", {})
         if not fields.get(F_AUTO_ADD):
@@ -437,6 +445,7 @@ def load_shows(at):
                 "id": record["id"],
                 "name": fields.get(F_SHOW_NAME) or record["id"],
                 "url": url,
+                "youtube": (fields.get(F_SHOW_YOUTUBE) or "").strip(),
             }
         )
     return shows
@@ -477,6 +486,146 @@ def youtube_thumbnail(video_id):
         if resp.status_code == 200 and len(resp.content) > 8000:
             return url
     return None
+
+
+UC_RE = re.compile(r"(UC[\w-]{22})")
+TITLE_STOP = set(
+    "the a an and or of to in is it that this for on with as at by be we you i our".split()
+)
+
+
+def channel_id_from(value):
+    """
+    A channel id from whatever someone pasted: a UC... id, a handle, or a URL.
+
+    Handles and /c/ URLs have to be resolved by fetching the page, because only
+    the id works with the uploads feed. The id is right there in the HTML, so
+    this needs no API key.
+    """
+    value = (value or "").strip()
+    if not value:
+        return None
+    direct = UC_RE.search(value)
+    if direct and "youtube.com" not in value.split(direct.group(1))[0][-30:]:
+        return direct.group(1)
+    if value.startswith("@"):
+        value = f"https://www.youtube.com/{value}"
+    if "youtube.com" not in value:
+        return None
+    try:
+        resp = requests.get(value, timeout=25, headers={"User-Agent": BROWSER_UA})
+        resp.raise_for_status()
+    except requests.RequestException:
+        return None
+    found = re.search(r'"(?:externalId|channelId)":"(UC[\w-]{22})"', resp.text)
+    return found.group(1) if found else None
+
+
+def channel_uploads(channel_id):
+    """
+    The channel's recent uploads: [(title, video id, published date)].
+
+    Uses the public uploads feed rather than the Data API. That feed needs no
+    key and no quota, and its ~15 most recent videos are plenty for a sync that
+    runs hourly and only fills episodes published in the last few weeks. The API
+    would only be needed to reach deeper history.
+    """
+    url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+    try:
+        resp = requests.get(url, timeout=30, headers={"User-Agent": BROWSER_UA})
+        resp.raise_for_status()
+    except requests.RequestException:
+        return []
+    out = []
+    for entry in feedparser.parse(resp.content).entries:
+        vid = (entry.get("yt_videoid") or "").strip()
+        published = entry_air_date(entry)
+        if vid and entry.get("title"):
+            out.append((entry["title"], vid, published))
+    return out
+
+
+def title_key(title):
+    """Comparable words from a title, ignoring numbering and trailing series tags."""
+    t = re.sub(r"\|.*$", "", title or "")
+    t = re.sub(r"^\s*E?\d+[:.\-]\s*", "", t)
+    return {w for w in re.findall(r"[a-z0-9]{3,}", t.lower()) if w not in TITLE_STOP}
+
+
+def fill_youtube_links(at, shows):
+    """
+    Give episodes their YouTube Link by matching the show's uploads feed.
+
+    Matching needs both a strong title overlap and a nearby date, because a
+    wrong video is worse than none: it looks right, and it would then also
+    produce the wrong thumbnail.
+
+    Measured 2026-09-05: BG2 matched 6 of 6 recent episodes and All-In 4 of 6,
+    all at 0.92 or better. Breaking Points matched none at any threshold, and
+    should not — it publishes re-cut segments under new titles, so the video is
+    genuinely not the episode. Shows like that should be left without a channel.
+    """
+    channels = [(s, (s.get("youtube") or "").strip()) for s in shows]
+    channels = [(s, c) for s, c in channels if c]
+    if not channels:
+        return 0
+
+    wanted = {}
+    for record in at.list_records(
+        EPISODES_TABLE,
+        fields=[F_EP_SHOW, F_EP_TITLE, F_EP_AIR_DATE, F_EP_YOUTUBE],
+    ):
+        f = record.get("fields", {})
+        if (f.get(F_EP_YOUTUBE) or "").strip():
+            continue
+        linked = f.get(F_EP_SHOW) or []
+        if not linked or not f.get(F_EP_TITLE):
+            continue
+        wanted.setdefault(linked[0], []).append(
+            (record["id"], f[F_EP_TITLE], (f.get(F_EP_AIR_DATE) or "")[:10])
+        )
+
+    updates = []
+    for show, raw in channels:
+        episodes = wanted.get(show["id"]) or []
+        if not episodes:
+            continue
+        channel_id = channel_id_from(raw)
+        if not channel_id:
+            log.warning("%s: could not read a channel id from %r.", show["name"], raw)
+            continue
+        uploads = channel_uploads(channel_id)
+        if not uploads:
+            log.warning("%s: no uploads returned for %s.", show["name"], channel_id)
+            continue
+
+        matched = 0
+        for record_id, title, air in episodes:
+            key = title_key(title)
+            if not key:
+                continue
+            best, best_video = 0.0, None
+            for vid_title, vid, published in uploads:
+                other = title_key(vid_title)
+                if not other:
+                    continue
+                if air and published:
+                    if abs((published.date() - datetime.strptime(air, "%Y-%m-%d").date()).days) > YT_DAY_WINDOW:
+                        continue
+                score = len(key & other) / len(key | other)
+                if score > best:
+                    best, best_video = score, vid
+            if best >= YT_TITLE_THRESHOLD and best_video:
+                updates.append(
+                    (record_id, {F_EP_YOUTUBE: f"https://www.youtube.com/watch?v={best_video}"})
+                )
+                matched += 1
+        if matched:
+            log.info("%s: matched %d episode(s) to YouTube.", show["name"], matched)
+
+    if updates and not DRY_RUN:
+        at.update_records(EPISODES_TABLE, updates)
+    return len(updates)
 
 
 def upgrade_youtube_art(at, budget):
@@ -749,6 +898,7 @@ def main():
 
     page_image = PageImageFinder(PAGE_IMAGE_BUDGET)
     total_created, total_claimed, total_backfilled, failures = 0, 0, 0, []
+    total_yt_links = fill_youtube_links(at, shows)
     total_youtube = upgrade_youtube_art(at, YOUTUBE_BUDGET)
 
     for show in shows:
@@ -815,11 +965,13 @@ def main():
 
     log.info(
         "Done. %d episode(s) added, %d pre-created record(s) filled in, "
-        "%d existing record(s) backfilled, %d given YouTube art. "
-        "%d episode page(s) fetched for art. %d feed(s) failed.",
+        "%d existing record(s) backfilled, %d linked to YouTube, "
+        "%d given YouTube art. %d episode page(s) fetched for art. "
+        "%d feed(s) failed.",
         total_created,
         total_claimed,
         total_backfilled,
+        total_yt_links,
         total_youtube,
         page_image.fetched,
         len(failures),
