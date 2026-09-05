@@ -193,6 +193,17 @@ Optimist, Steelman…). About 8 names appear in both because for a client we bot
 clip their show and run their channels — that overlap is real, not a modelling
 error. Linked via the `Channels` field on Shows.
 
+### Do not trust a filtered count without checking it
+
+On 2026-09-04 a `list_records_for_table` call filtering Shows on
+`Relationship isAnyOf ["selJwPIc75HInQFsr"]` returned `totalRecordCount: 0` for
+a value four records actually hold. That wrong number was reported as fact and
+written into this document, and it nearly led to deleting a select option that
+was in use. Listing the field unfiltered and counting gave the right answer.
+
+When a count drives a decision — especially a destructive one — list and count
+rather than filter.
+
 ### Mining priority lives on the show, not the episode
 
 `Mining Priority` (High / Medium / Low) is a field on **Shows**
@@ -217,10 +228,15 @@ fields with the same name compete and neither reads as authoritative.
 
 **A gap this leaves:** `Relationship` on Shows carries a "Don't Mine" option,
 which is the bottom of this same scale living in the field that otherwise
-describes the commercial relationship. It is used by **zero of 74 shows**, so
-nothing depends on it today. Cleanest fix is to add "Don't Mine" to Mining
-Priority and drop the Relationship option — otherwise a former client you still
-clip has no honest way to be recorded.
+describes the commercial relationship. Four shows use it — TED Talks Daily,
+Fintech TV, PBS News Hour and The Playbook Podcast (Politico), all outlets with
+zero episodes and no client link. They are *not* former clients; the real ones
+are 10X Capital Podcast and 20VC, both already marked as such.
+
+The fix is to move that signal to Mining Priority and set those four to
+Watchlist. **Order matters:** add "Don't Mine" to Mining Priority and set the
+four shows *before* deleting the Relationship option, because deleting a select
+choice clears every cell using it.
 
 ### Mining status is separate from Video Status
 
