@@ -272,6 +272,48 @@ exists. Whether that works per show depends on the feed carrying
 `itunes:episode` — All-In's current records have no numbers, so test before
 promising.
 
+### Matching clips to episodes by transcript
+
+Tested 2026-09-05. A clip's transcript should be a substring of its episode's,
+which is a far stronger signal than titles or dates. The testing is worth
+keeping because the result is nuanced.
+
+**Exact substring matching does not work.** The two transcripts come from
+different ASR engines, so wording differs: only 18 of 130 twelve-word probes
+from a clip appeared verbatim in its own episode's transcript.
+
+**Bag-of-words does not work either**, for short clips on a single-topic show.
+A 91-word clip of generic VC talk ranked 32nd of 425, because its vocabulary is
+shared by the whole archive.
+
+**4-gram containment works, with a large margin.** A 170-word clip scored 0.529
+against its true episode and 0.035 against the next best — the noise floor sits
+near 0.01-0.04, so a true match stands roughly 15x above it. Use a threshold and
+a three-way outcome: matched / no confident match / conflicts with the existing
+episode number. Never take the top score as a match on its own.
+
+**It also audits existing data.** Two clips both carried Episode Number 47. The
+first matched E47 at 0.529 and the phrase "superlatives" appears in E47 and
+nowhere else in 425 episodes. The second scored at noise against every episode,
+and its distinctive phrase "weirdly the easiest" appears in none of them — so
+its episode number is wrong. Some of the 112 number-based links are therefore
+wrong too, and this method finds them.
+
+**The limit is input, not method.** Transcripts in the feed, measured:
+
+| Show | Items | With `podcast:transcript` |
+| --- | --- | --- |
+| 10X / How I Invest | 425 | **425** |
+| Diary Of A CEO | 880 | 147 |
+| Trading Places | 48 | 31 |
+| All-In, 20VC, BG2Pod, Founders, Making Sense, Pivot, Pod Save America | — | **0** |
+
+So only 10X can be automated from the feed alone. For the rest the episode side
+has to be transcribed first — YouTube captions where the episodes are on a live
+channel, otherwise ASR. That is cheap next to a person (a 2-hour episode is
+minutes of compute), and the clip side already has transcripts on 3,493 of 5,478
+videos.
+
 ### Mining status is separate from Video Status
 
 `Video Status` = "we are editing this full episode", only meaningful for the 107
