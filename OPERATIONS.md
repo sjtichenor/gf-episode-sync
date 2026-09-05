@@ -236,6 +236,29 @@ was banned.
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
 
+### Two art fields: landscape and square
+
+`Episode Art` (`fldSGEgzNTZAME4IE`) is the primary — the YouTube thumbnail when
+there is one, otherwise the square art. `Episode Art (Square)`
+(`fldVVebI3fb19x4fq`) is always the square version, whatever `Episode Art`
+happens to hold.
+
+The split exists because YouTube thumbnails are 16:9 and podcast art is square,
+and both are wanted: the landscape one for an interface, the square one for
+gallery grids and anywhere tiles must be uniform. Before this there was one
+field, so making YouTube primary meant the square version was simply lost.
+
+The sync writes both on create, backfills either when missing, and
+`upgrade_youtube_art` deliberately touches **only** `Episode Art` — so an
+episode gaining a video keeps its square copy.
+
+97 legacy rows were backfilled by hand on 2026-09-05, since backfill cannot
+reach rows with no Feed GUID. Where `Episode Art` already held square art it was
+copied across; where it held a YouTube thumbnail the square version was
+recovered from the feed by episode number. Copying an Airtable attachment to
+another field in the same base works by passing its own URL — verified, the copy
+came back 1080x1080 at the identical byte size.
+
 ### Episode Length comes from the feed, not YouTube
 
 `itunes:duration` is on **13,396 of 13,398 items across all 21 feeds** — 99.98%

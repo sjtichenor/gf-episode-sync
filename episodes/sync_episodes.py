@@ -68,6 +68,7 @@ F_EP_SHOW = "Show"
 F_EP_GUID = "Feed GUID"
 F_EP_DESC = "Episode Description"
 F_EP_ART = "Episode Art"
+F_EP_ART_SQUARE = "Episode Art (Square)"
 F_EP_YOUTUBE = "YouTube Link"
 F_EP_LENGTH = "Episode Length"
 
@@ -643,6 +644,10 @@ def upgrade_youtube_art(at, budget):
 
     Rows whose art is already `yt-<id>.jpg` are skipped without a network call,
     so the steady-state cost is near zero.
+
+    Only `Episode Art` is written here. `Episode Art (Square)` is deliberately
+    left alone, so the square version survives an episode gaining a video and is
+    still there for gallery grids and anywhere tiles must be uniform.
     """
     updates, checked, dead = [], 0, []
 
@@ -724,6 +729,7 @@ def load_episode_index(at):
             F_EP_NUMBER,
             F_EP_DESC,
             F_EP_ART,
+            F_EP_ART_SQUARE,
             F_EP_LINK,
             F_EP_LENGTH,
         ],
@@ -737,6 +743,8 @@ def load_episode_index(at):
                 missing.add(F_EP_DESC)
             if not fields.get(F_EP_ART):
                 missing.add(F_EP_ART)
+            if not fields.get(F_EP_ART_SQUARE):
+                missing.add(F_EP_ART_SQUARE)
             if not (fields.get(F_EP_LINK) or "").strip():
                 missing.add(F_EP_LINK)
             if not fields.get(F_EP_LENGTH):
@@ -802,10 +810,15 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
                     description = entry_description(entry)
                     if description:
                         repair[F_EP_DESC] = description
-                if F_EP_ART in missing:
+                if F_EP_ART in missing or F_EP_ART_SQUARE in missing:
                     image = entry_image(entry, feed, page_image)
                     if image:
-                        repair[F_EP_ART] = [{"url": image}]
+                        # Episode Art may already hold a YouTube thumbnail, in
+                        # which case only the square copy is missing.
+                        if F_EP_ART in missing:
+                            repair[F_EP_ART] = [{"url": image}]
+                        if F_EP_ART_SQUARE in missing:
+                            repair[F_EP_ART_SQUARE] = [{"url": image}]
                 if F_EP_LINK in missing:
                     link = entry_link(entry)
                     if link:
@@ -843,7 +856,10 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
             fields[F_EP_DESC] = description
         image = entry_image(entry, feed, page_image)
         if image:
+            # Both, for now. If the episode later gains a YouTube link, the art
+            # pass overwrites Episode Art only and this square copy survives.
             fields[F_EP_ART] = [{"url": image}]
+            fields[F_EP_ART_SQUARE] = [{"url": image}]
 
         # Does a producer-created placeholder already stand for this episode?
         # Only episode number is trustworthy here: placeholder titles are guest
