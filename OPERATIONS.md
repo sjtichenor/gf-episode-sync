@@ -49,6 +49,35 @@ another Render service is invisible here.
 
 ---
 
+## Other automations in this base
+
+Not part of the sync, but they run against the same tables and will confuse a
+future reader.
+
+**Log Video Status Changes** (`wfls7VH9JeCqDCil1`) keeps `Video Status Logs`
+(`tblnPcYMXNYwLkpYD`): on a Video Status change it finds the row with no End
+Time, stamps it, and opens a new one.
+
+It failed intermittently until 2026-09-05 with "Received invalid inputs" on the
+Update step. The cause is that **Find records reports Success when it matches
+nothing** — its documented output is "always an array, even if zero records
+match". The Update step took its Record ID from
+`map(records, propertyGetter("id"))`, which is an empty list when nothing
+matched, so the update ran with no row id.
+
+That happens for any video with no open log: **2,997 of 5,478 videos have no log
+row at all**, since they predate the logging automation. And because a failed
+action halts the run, the new log was never created either — so those videos
+could never start being logged.
+
+Fixed by wrapping the Update in a conditional on `length(records) > 0`. Note two
+Airtable constraints that force the shape: a `conditionalGroup` must be the
+**last** node in its list, so Create record has to be duplicated into both
+branches rather than following the group; and `array` dataType only supports
+contains/isEmpty style operators, so the test is on `length` as a number.
+
+---
+
 ## Decisions, and the evidence behind them
 
 Each of these was measured before being built. The measurements are worth
