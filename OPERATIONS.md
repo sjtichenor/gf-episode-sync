@@ -78,6 +78,46 @@ contains/isEmpty style operators, so the test is on `length` as a number.
 
 ---
 
+## Revisions per person
+
+Added 2026-09-06. Counts how often a video was sent back for more edits, and
+attributes it to the editor and the director.
+
+The chain deliberately adds **no fields to the status log**:
+
+| Table | Field | What it does |
+| --- | --- | --- |
+| Video Status Logs | `Is Revision` (`fldXH7NdTSzUJLlbB`) | 1 when the row is a revision |
+| Videos | `Revisions` (`fldKo9z83Fb5JB1AQ`) | SUM of the above |
+| Team | `Revisions as Editor` (`fld8ZehOgfWskgRO5`) | SUM via the Editor link |
+| Team | `Revisions as Director` (`fldrn9r0J6wvJD5PA`) | SUM via the Director link |
+| Team | `Revisions per 100 Videos (Editor / Director)` | the rate, which is the number worth reading |
+
+Attribution runs through the video's *current* Editor and Director rather than a
+snapshot on the log, which is sound only because Spencer confirmed videos are
+never reassigned — same director and editor start to finish. The payoff is that
+it covers all 3,381 historical revisions instead of only future ones. If a video
+ever were reassigned, its past revisions would move to the new person.
+
+**Two traps:**
+
+- **The status was renamed.** 754 rows say "Awaiting Revision" (up to January
+  2026) and 2,627 say "Needs More Edits". `Is Revision` counts both; counting
+  only the current name undercuts by about a fifth.
+- **Raw counts mislead, badly.** Jaymark Parba leads on raw revisions (444) but
+  is mid-pack per video; Daren Jay Salazar has 126 and the best rate on the team
+  (34 per 100 against a spread up to 243). Always read the rate.
+
+Rates are expressed per 100 videos because `create_field` makes formula fields
+with zero decimal places and there is no option to change it, so a per-video
+ratio would silently round 0.34 to 0.
+
+**Also worth knowing:** Videos has a formula computing time in
+`"Awaiting Revision"` (`fldzRVASuQML9UocO`), but the Videos status field has no
+such option — only the log does. It always returns blank.
+
+---
+
 ## Decisions, and the evidence behind them
 
 Each of these was measured before being built. The measurements are worth
