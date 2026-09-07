@@ -292,7 +292,77 @@ Shows where this works well: Conversations with Tyler 57/60, Pod Save the World
 
 **Second, for the rest: match the channel's uploads feed.**
 
-### YouTube Links are filled from the channel's uploads feed, not the API
+### YouTube Links use the Data API, with the public feed as fallback
+
+`YouTube Channel` on Shows (`fldGzPNoD9LwSobL4`) takes a handle, URL or `UC...`
+id. The sync resolves it to a channel id — the id is in the channel page HTML,
+so that step needs no key.
+
+`YOUTUBE_API_KEY` **is set on `Episode sync v2`** (confirmed from the run at
+2026-09-07 16:01, which logs `Data API key: present`). Until that day nothing in
+this repo used it: links came only from the public uploads feed, which returns
+about **15 videos per channel**. That cap was the whole problem — a channel that
+posts five clips a day buries its full episodes within a day or two, so older
+episodes could never match no matter how good their title was.
+
+The sync now pages the uploads playlist (`UU` + the channel id minus `UC`) at 1
+quota unit per 50 videos. `search.list` costs 100 units per call against a
+10,000/day default and is **not used anywhere**. No key, a bad key and an
+exhausted quota all fall back to the public feed; all three were verified.
+
+Quota is bounded three ways, because the first version was not and it showed:
+
+- Paging **stops once a page runs older than the oldest episode still missing a
+  link**. Without this Breaking Points read 2,000 videos in one run, spent the
+  entire 40-page budget, and left all 15 other shows on the public feed.
+- What is left is **shared between the shows that still need it**, so the first
+  channel read cannot starve the rest.
+- A global `MAX_YOUTUBE_API_PAGES` (120) caps a single run.
+
+Steady state is cheap: a show with no unlinked episodes is skipped before any
+request. The cost is the one-time backfill.
+
+### A video must run about as long as the episode, not just 30 minutes
+
+Only full episodes are worth mining, and a clip can share enough words with the
+episode title to score a match, so length is what separates them. Durations come
+from `videos.list` (1 unit per 50 ids); the public feed carries none.
+
+A flat 30-minute floor is the obvious rule and it is **wrong for this catalogue**
+— these are real full episodes, measured 2026-09-07 from `Episode Length`:
+
+| Show | Real episodes under 30 min |
+| --- | --- |
+| Making Sense with Sam Harris | 23:32, 24:00, 25:32 — 3 of the 4 on file |
+| Talking Tokens | 11:02, 13:39, 28:48 |
+| This Week in Startups | 17:54, 21:05, 24:50 |
+| Prof G Markets | 4:15, 27:53 |
+| The Diary Of A CEO | 18:35, 25:56 |
+
+So the video is compared against **that episode's own `Episode Length`** and has
+to be within a fifth of it (`YOUTUBE_LENGTH_RATIO`, 0.8). The flat floor applies
+only where the feed never gave a length.
+
+This was not theoretical. The 2026-09-07 16:00 run, before the rule shipped,
+linked Breaking Points' 41:38 episode of 8/20 to `CT3E1ZBOMiY`, a **19:43
+segment** — and then took that segment's thumbnail as the episode art. Ratio
+0.47, comfortably rejected now. Both fields were cleared by hand; the art
+refills from the feed because backfill repairs an empty `Episode Art`.
+
+### The Morning Meeting's full episodes are archived livestreams
+
+Its `/videos` tab is almost entirely clips — 29 of 30 run under 16 minutes. The
+full episodes live on `/streams`, where 29 of 30 run about an hour. Verified
+2026-09-07: **archived livestreams do appear in the uploads playlist** (4 of the
+15 most recent uploads were streams), so no separate lookup is needed — the
+duration rule is the whole fix.
+
+Their feed titles and stream titles are the same headlines, near-exact matches
+("Democrat Abdul El-Sayed Slammed for \"Non-Apology\"…" appears verbatim in
+both). The earlier measurement of "1 of 8" was never a titling problem; the
+clips were simply crowding the episodes out of the 15-video window.
+
+### Superseded: links from the uploads feed alone
 
 `YouTube Channel` on Shows (`fldGzPNoD9LwSobL4`) takes a handle, URL or `UC...`
 id. The sync resolves it to a channel id — the id is in the channel page HTML,

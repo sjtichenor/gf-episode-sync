@@ -103,7 +103,19 @@ YOUTUBE_API_KEY = next(
 # so this is deliberately small: paging every channel in full every hour would
 # burn the day's allowance. A few pages an hour walks back through the archive
 # over a few days and then has nothing left to do.
-YOUTUBE_API_PAGE_BUDGET = int(os.environ.get("MAX_YOUTUBE_API_PAGES", "40"))
+YOUTUBE_API_PAGE_BUDGET = int(os.environ.get("MAX_YOUTUBE_API_PAGES", "120"))
+# Only full episodes are worth mining. Several channels post five or more clips
+# a day cut from one show, and a clip can share enough words with the episode
+# title to score a match, so length is what separates them. Needs the Data API:
+# the public uploads feed carries no duration.
+#
+# A video has to run about as long as the episode it claims to be. That beats a
+# fixed floor, which would throw away real episodes: Making Sense publishes free
+# 23-minute cuts, and Talking Tokens, This Week in Startups, Prof G Markets and
+# The Diary Of A CEO all run full episodes under half an hour.
+YOUTUBE_LENGTH_RATIO = float(os.environ.get("YOUTUBE_LENGTH_RATIO", "0.8"))
+# Only for episodes whose own length the feed never gave us.
+MIN_YOUTUBE_SECONDS = int(os.environ.get("MIN_YOUTUBE_DURATION", "1800"))
 # Report what would be linked without writing it.
 YOUTUBE_LINK_DRY_RUN = os.environ.get("YOUTUBE_LINK_DRY_RUN", "").strip() in (
     "1",
@@ -641,13 +653,18 @@ def channel_uploads(channel_id):
     return out
 
 
-def youtube_api_uploads(channel_id, page_budget):
+def youtube_api_uploads(channel_id, page_budget, stop_before=None):
     """
     A channel's uploads via the Data API, newest first, and the pages spent.
 
     The uploads playlist id is the channel id with its `UC` prefix swapped for
     `UU`, so no lookup call is needed. Costs 1 quota unit per 50 videos, unlike
     `search.list` at 100 per call, which is why search is not used anywhere.
+
+    `stop_before` ends paging once a page runs older than the oldest episode
+    still missing a link. Without it one busy channel spends the whole budget:
+    Breaking Points posts five videos a day, so it read 2,000 of them in a
+    single run and left every other show on the 15-video public feed.
 
     Returns ([], 0) with no key, on any error, and on quota exhaustion — the
     caller then falls back to the public uploads feed.
@@ -704,10 +721,90 @@ def youtube_api_uploads(channel_id, page_budget):
             if vid and snippet.get("title"):
                 out.append((snippet["title"], vid, published))
 
+        if stop_before and out and out[-1][2] and out[-1][2].date() < stop_before:
+            break
         token = payload.get("nextPageToken")
         if not token:
             break
     return out, pages
+
+
+ISO_DURATION = re.compile(
+    r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$"
+)
+
+
+def iso_seconds(value):
+    """Seconds from an ISO 8601 duration like PT1H2M3S, or None."""
+    match = ISO_DURATION.match(value or "")
+    if not match:
+        return None
+    days, hours, minutes, seconds = (int(g or 0) for g in match.groups())
+    return days * 86400 + hours * 3600 + minutes * 60 + seconds
+
+
+def youtube_api_durations(video_ids, call_budget):
+    """
+    {video id: seconds} for as many ids as the budget covers, and calls spent.
+
+    videos.list takes 50 ids per call for 1 quota unit, the same rate as paging
+    the playlist, so asking for durations roughly doubles the cost of a channel.
+
+    A live stream still in progress reports PT0S and so is treated as too short,
+    which is correct: the archive is not watchable as an episode until it ends.
+    """
+    if not YOUTUBE_API_KEY or call_budget <= 0:
+        return {}, 0
+
+    out, calls = {}, 0
+    for start in range(0, len(video_ids), 50):
+        if calls >= call_budget:
+            break
+        batch = video_ids[start : start + 50]
+        try:
+            resp = requests.get(
+                "https://www.googleapis.com/youtube/v3/videos",
+                params={
+                    "part": "contentDetails",
+                    "id": ",".join(batch),
+                    "maxResults": 50,
+                    "key": YOUTUBE_API_KEY,
+                },
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            log.warning("YouTube duration request failed: %s", exc)
+            return out, calls
+        if resp.status_code != 200:
+            log.warning("YouTube duration request returned %s.", resp.status_code)
+            return out, calls
+        calls += 1
+        for item in resp.json().get("items", []):
+            seconds = iso_seconds((item.get("contentDetails") or {}).get("duration"))
+            if item.get("id") and seconds is not None:
+                out[item["id"]] = seconds
+    return out, calls
+
+
+def runs_full_length(video_seconds, episode_seconds):
+    """
+    Whether a video is long enough to be the episode rather than a clip from it.
+
+    With the episode's own length known, the two have to be within a fifth of
+    each other, which rejects a 10-minute cut of an hour-long show while still
+    accepting the free 23-minute version of a paywalled episode. Without it,
+    fall back to a flat floor.
+
+    An unknown video length means the public feed was the source; it carries no
+    durations, so this cannot judge and says yes rather than blocking every
+    match on a channel the API never reached.
+    """
+    if video_seconds is None:
+        return True
+    if not episode_seconds:
+        return video_seconds >= MIN_YOUTUBE_SECONDS
+    longer = max(video_seconds, episode_seconds)
+    return longer > 0 and min(video_seconds, episode_seconds) / longer >= YOUTUBE_LENGTH_RATIO
 
 
 def title_key(title):
@@ -745,7 +842,7 @@ def fill_youtube_links(at, shows):
     wanted = {}
     for record in at.list_records(
         EPISODES_TABLE,
-        fields=[F_EP_SHOW, F_EP_TITLE, F_EP_AIR_DATE, F_EP_YOUTUBE],
+        fields=[F_EP_SHOW, F_EP_TITLE, F_EP_AIR_DATE, F_EP_YOUTUBE, F_EP_LENGTH],
     ):
         f = record.get("fields", {})
         if (f.get(F_EP_YOUTUBE) or "").strip():
@@ -754,19 +851,39 @@ def fill_youtube_links(at, shows):
         if not linked or not f.get(F_EP_TITLE):
             continue
         wanted.setdefault(linked[0], []).append(
-            (record["id"], f[F_EP_TITLE], (f.get(F_EP_AIR_DATE) or "")[:10])
+            (
+                record["id"],
+                f[F_EP_TITLE],
+                (f.get(F_EP_AIR_DATE) or "")[:10],
+                f.get(F_EP_LENGTH),
+            )
         )
 
     updates = []
+    pending = [s for s, _ in channels if wanted.get(s["id"])]
     for show, raw in channels:
         episodes = wanted.get(show["id"]) or []
         if not episodes:
             continue
+        # Share what is left between the shows that still need it, so the first
+        # channel read cannot starve the rest.
+        share = max(2, pages_left // max(1, len(pending)))
+        pending = [s for s in pending if s["id"] != show["id"]]
+        dates = [
+            datetime.strptime(air, "%Y-%m-%d").date()
+            for _, _, air, _ in episodes
+            if air
+        ]
+        stop_before = (
+            min(dates) - timedelta(days=YT_DAY_WINDOW) if dates else None
+        )
         channel_id = channel_id_from(raw)
         if not channel_id:
             log.warning("%s: could not read a channel id from %r.", show["name"], raw)
             continue
-        uploads, spent = youtube_api_uploads(channel_id, pages_left)
+        uploads, spent = youtube_api_uploads(
+            channel_id, min(share, pages_left), stop_before
+        )
         pages_left -= spent
         if not uploads:
             time.sleep(1)  # do not burst the public feed
@@ -774,15 +891,28 @@ def fill_youtube_links(at, shows):
         if not uploads:
             log.warning("%s: no uploads returned for %s.", show["name"], channel_id)
             continue
-        log.info(
-            "%s: %d video(s) from %s.",
-            show["name"],
-            len(uploads),
-            "the API" if spent else "the public feed",
-        )
+        durations = {}
+        if spent:
+            durations, calls = youtube_api_durations(
+                [vid for _, vid, _ in uploads], pages_left
+            )
+            pages_left -= calls
+            log.info(
+                "%s: %d video(s) from the API, %d with a known length.",
+                show["name"],
+                len(uploads),
+                len(durations),
+            )
+        else:
+            log.info(
+                "%s: %d video(s) from the public feed, which carries no "
+                "durations, so clips cannot be told from episodes.",
+                show["name"],
+                len(uploads),
+            )
 
         matched = 0
-        for record_id, title, air in episodes:
+        for record_id, title, air, length in episodes:
             key = title_key(title)
             if not key:
                 continue
@@ -794,6 +924,8 @@ def fill_youtube_links(at, shows):
                 if air and published:
                     if abs((published.date() - datetime.strptime(air, "%Y-%m-%d").date()).days) > YT_DAY_WINDOW:
                         continue
+                if not runs_full_length(durations.get(vid), length):
+                    continue
                 score = len(key & other) / len(key | other)
                 if score > best:
                     best, best_video = score, vid
