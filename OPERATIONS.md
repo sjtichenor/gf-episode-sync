@@ -349,6 +349,25 @@ segment** — and then took that segment's thumbnail as the episode art. Ratio
 0.47, comfortably rejected now. Both fields were cleared by hand; the art
 refills from the feed because backfill repairs an empty `Episode Art`.
 
+### Select options can be added by the API, via typecast
+
+`update_field` cannot touch a single-select's choices — its `options` accepts a
+formula and nothing else. But **writing a value with `typecast: true` creates
+the option**. That is how `Highest` was added to both `Shows → Mining Priority`
+and `Full Episodes → Mining Priority Override` on 2026-09-07, without the UI:
+write the new name to one record with typecast, then restore that record's old
+value. The choice stays; the record is unchanged.
+
+Two things the API cannot control this way, so they stay UI jobs:
+
+- The option lands at the **end** of the picker, not in rank order.
+- It gets an arbitrary colour. Both `Highest` options came out `blueLight2`,
+  **the same blue as `Low`** — worth recolouring so the top and bottom of the
+  scale do not look alike.
+
+Neither affects sorting: the `Mining Priority` formula maps to `1 - Highest` …
+`5 - Don't Mine`, and it already handled `Highest` before the option existed.
+
 ### What the API actually bought, measured
 
 First run with deep paging and the length rule, 2026-09-07 17:00 — **39 links in
