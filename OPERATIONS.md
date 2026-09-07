@@ -328,20 +328,33 @@ show's own feed rather than trusting the handle:
 | Founders | David Senra's channel, not @FoundersPodcast (which has no uploads) | 2/5 |
 | ThursdAI | @altryne, the host's channel | 1/5 |
 
-Blank for Pivot, The Morning Meeting, This Week in Startups, EconTalk and
-Breaking Points — **not because those shows lack a channel.** They are all
-popular and active. It is because guessing handles does not work, and an earlier
-version of this document said the opposite, which was wrong.
+**Never guess a channel handle.** Every handle guessed while building this
+landed somewhere useless: `@pivotpod` is "JPivots" with one unrelated video, and
+`@ThisWeekinStartups` is a **fossil channel whose last upload is June 2011**,
+titled "This Week in Startups has Moved!" — the show changed channels fifteen
+years ago, it did not leave YouTube. Those misses were then written up here as
+facts about the shows, which was wrong twice over. A wrong channel fails
+silently and looks exactly like a show that re-titles its videos, so it is
+expensive to diagnose and easy to rationalise. Ask for the URL.
 
-Every handle guessed here landed somewhere useless: `@pivotpod` is "JPivots"
-with one unrelated video, `@ThisWeekinStartups` is a **fossil channel whose last
-upload is from June 2011**, titled "This Week in Startups has Moved!" — the show
-moved channels fifteen years ago, not away from YouTube. Those misses were then
-written up as facts about the shows.
+All 18 shows have a channel as of 2026-09-07, the last five supplied by Spencer
+from his browser and each verified against its own feed before saving:
 
-**Get these channel URLs from a browser rather than guessing.** A wrong channel
-fails silently, and the failure looks exactly like a show that re-titles its
-videos, so it is expensive to diagnose and easy to rationalise.
+| Show | Channel | Recent episodes matched |
+| --- | --- | --- |
+| This Week in Startups | This Week in Startups (`UCkkhmBW…`) | 5/8 at 1.00 |
+| The Morning Meeting | 2WAY (`UCq7OKQb…`) | 1/8 |
+| Pivot | Pivot with Kara Swisher and Scott Galloway | 0/8 |
+| EconTalk | EconTalk | 0/8 |
+| Breaking Points | Breaking Points | 0/8 |
+
+The three zeros are **now a verified property of those channels, not a guess**:
+they post segments and clips under their own headlines rather than the full
+episode under its feed title. Whether a full-episode video exists deeper than
+the 15 the uploads feed returns is still unknown — answering that needs the Data
+API, which can page the whole uploads playlist for 1 quota unit per 50 videos.
+Storing the correct channel costs nothing either way, and the match threshold
+means a wrong guess produces no link rather than a bad one.
 
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
