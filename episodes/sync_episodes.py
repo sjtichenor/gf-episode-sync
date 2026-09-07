@@ -35,6 +35,7 @@ import re
 import sys
 import time
 import logging
+import collections
 from datetime import datetime, timedelta, timezone
 
 import feedparser
@@ -205,6 +206,50 @@ def entry_guid(entry):
         if enclosure.get("href"):
             return enclosure["href"].strip()
     return (entry.get("link") or entry.get("title") or "").strip()
+
+
+YOUTUBE_IN_TEXT = re.compile(
+    r"(?:youtube\.com/(?:watch\?[^\"'\s]*v=|live/|embed/)|youtu\.be/)"
+    r"([A-Za-z0-9_-]{11})"
+)
+
+
+def feed_boilerplate_videos(feed):
+    """
+    Video ids that appear on more than one episode, which are therefore not
+    *this* episode's video.
+
+    Publishers put standing links in every description -- Theo Von's outro music
+    video, This Week in Startups' promo. Taking the first YouTube link in a
+    description gives all 59 Theo Von episodes the same video. Measured across
+    22 feeds: 301 episodes carry a link, but only 196 carry one that is actually
+    theirs.
+    """
+    seen = collections.Counter()
+    for entry in feed.entries:
+        for vid in set(YOUTUBE_IN_TEXT.findall(_entry_text(entry))):
+            seen[vid] += 1
+    return {vid for vid, count in seen.items() if count > 1}
+
+
+def _entry_text(entry):
+    parts = [entry.get("link") or "", entry.get("summary") or ""]
+    for block in entry.get("content") or []:
+        parts.append(block.get("value") or "")
+    return " ".join(parts)
+
+
+def entry_youtube_url(entry, boilerplate):
+    """
+    The episode's own YouTube video, when the publisher put it in the feed.
+
+    Exact and publisher-supplied, so it beats matching titles against a channel.
+    `boilerplate` must come from feed_boilerplate_videos for the same feed.
+    """
+    for vid in YOUTUBE_IN_TEXT.findall(_entry_text(entry)):
+        if vid not in boilerplate:
+            return f"https://www.youtube.com/watch?v={vid}"
+    return None
 
 
 def entry_link(entry):
@@ -759,6 +804,7 @@ def load_episode_index(at):
             F_EP_ART_SQUARE,
             F_EP_LINK,
             F_EP_LENGTH,
+            F_EP_YOUTUBE,
         ],
     ):
         fields = record.get("fields", {})
@@ -776,6 +822,8 @@ def load_episode_index(at):
                 missing.add(F_EP_LINK)
             if not fields.get(F_EP_LENGTH):
                 missing.add(F_EP_LENGTH)
+            if not (fields.get(F_EP_YOUTUBE) or "").strip():
+                missing.add(F_EP_YOUTUBE)
             if missing:
                 incomplete[guid] = (record["id"], missing)
             continue
@@ -819,6 +867,7 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
     if feed.bozo and not feed.entries:
         raise RuntimeError(f"could not parse feed: {feed.bozo_exception}")
 
+    boilerplate = feed_boilerplate_videos(feed)
     claims, creates, backfills = [], [], []
 
     for entry in feed.entries:
@@ -854,6 +903,10 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
                     seconds = entry_duration(entry)
                     if seconds:
                         repair[F_EP_LENGTH] = seconds
+                if F_EP_YOUTUBE in missing:
+                    video = entry_youtube_url(entry, boilerplate)
+                    if video:
+                        repair[F_EP_YOUTUBE] = video
                 if repair:
                     backfills.append((record_id, repair))
             continue
@@ -875,6 +928,9 @@ def plan_for_show(show, known_guids, placeholders, incomplete, cutoff, page_imag
         seconds = entry_duration(entry)
         if seconds:
             fields[F_EP_LENGTH] = seconds
+        video = entry_youtube_url(entry, boilerplate)
+        if video:
+            fields[F_EP_YOUTUBE] = video
         number = entry_number(entry)
         if number is not None:
             fields[F_EP_NUMBER] = number
@@ -941,8 +997,6 @@ def main():
 
     page_image = PageImageFinder(PAGE_IMAGE_BUDGET)
     total_created, total_claimed, total_backfilled, failures = 0, 0, 0, []
-    total_yt_links = fill_youtube_links(at, shows)
-    total_youtube = upgrade_youtube_art(at, YOUTUBE_BUDGET)
 
     for show in shows:
         try:
@@ -1005,6 +1059,9 @@ def main():
                 known_guids.update(guid for _, guid, _ in creates)
             total_created += len(batch)
             log.info("%s: added %d episode(s).", show["name"], len(batch))
+
+    total_yt_links = fill_youtube_links(at, shows)
+    total_youtube = upgrade_youtube_art(at, YOUTUBE_BUDGET)
 
     log.info(
         "Done. %d episode(s) added, %d pre-created record(s) filled in, "

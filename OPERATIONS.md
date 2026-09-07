@@ -273,6 +273,25 @@ was in use. Listing the field unfiltered and counting gave the right answer.
 When a count drives a decision — especially a destructive one — list and count
 rather than filter.
 
+### YouTube Links, in two tiers
+
+**First: the link the publisher put in the feed.** Many shows include the
+episode's YouTube URL in the episode description. That is exact and needs no
+matching, so it runs first, inside the feed loop.
+
+It needs one guard. Publishers also put *standing* links in every description —
+Theo Von's outro music video, This Week in Startups' promo — so taking the first
+YouTube link in a description gives all 59 Theo Von episodes the same video.
+`feed_boilerplate_videos` therefore discards any id that appears on more than
+one episode in the feed. Measured across 22 feeds: **301 episodes carry a link,
+but only 196 carry one that is actually theirs.** Theo Von goes from 59 to 1,
+This Week in Startups from 54 to 12.
+
+Shows where this works well: Conversations with Tyler 57/60, Pod Save the World
+55/60, Pod Save America 48/60.
+
+**Second, for the rest: match the channel's uploads feed.**
+
 ### YouTube Links are filled from the channel's uploads feed, not the API
 
 `YouTube Channel` on Shows (`fldGzPNoD9LwSobL4`) takes a handle, URL or `UC...`
@@ -309,12 +328,20 @@ show's own feed rather than trusting the handle:
 | Founders | David Senra's channel, not @FoundersPodcast (which has no uploads) | 2/5 |
 | ThursdAI | @altryne, the host's channel | 1/5 |
 
-Left blank on purpose, because the lookups returned something wrong and a wrong
-channel means wrong links *and* wrong thumbnails: **Pivot** (@pivotpod is
-"JPivots", one unrelated video), **The Morning Meeting** (@themorningmeeting
-scored 0/5 against the feed), **This Week in Startups** (right channel, but its
-latest video says the show has moved elsewhere, so links would point at a dead
-channel), **EconTalk** (nothing resolved), **Trading Places** (channel banned).
+Blank for Pivot, The Morning Meeting, This Week in Startups, EconTalk and
+Breaking Points — **not because those shows lack a channel.** They are all
+popular and active. It is because guessing handles does not work, and an earlier
+version of this document said the opposite, which was wrong.
+
+Every handle guessed here landed somewhere useless: `@pivotpod` is "JPivots"
+with one unrelated video, `@ThisWeekinStartups` is a **fossil channel whose last
+upload is from June 2011**, titled "This Week in Startups has Moved!" — the show
+moved channels fifteen years ago, not away from YouTube. Those misses were then
+written up as facts about the shows.
+
+**Get these channel URLs from a browser rather than guessing.** A wrong channel
+fails silently, and the failure looks exactly like a show that re-titles its
+videos, so it is expensive to diagnose and easy to rationalise.
 
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
