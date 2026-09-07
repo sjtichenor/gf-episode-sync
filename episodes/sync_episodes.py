@@ -87,6 +87,30 @@ PAGE_IMAGE_BUDGET = int(os.environ.get("MAX_PAGE_IMAGE_FETCHES", "60"))
 YOUTUBE_BUDGET = int(os.environ.get("MAX_YOUTUBE_THUMBNAIL_CHECKS", "60"))
 YT_TITLE_THRESHOLD = float(os.environ.get("YOUTUBE_TITLE_MATCH", "0.5"))
 YT_DAY_WINDOW = int(os.environ.get("YOUTUBE_MATCH_DAYS", "7"))
+
+# The Data API is optional. Without a key everything still works off public
+# feeds; the key only buys history deeper than the 15 videos the uploads feed
+# returns, which is what lets older episodes match at all.
+YOUTUBE_API_KEY = next(
+    (
+        os.environ[name].strip()
+        for name in ("YOUTUBE_API_KEY", "YT_API_KEY", "YOUTUBE_KEY")
+        if os.environ.get(name, "").strip()
+    ),
+    "",
+)
+# playlistItems costs 1 quota unit per page of 50 against a 10,000/day default,
+# so this is deliberately small: paging every channel in full every hour would
+# burn the day's allowance. A few pages an hour walks back through the archive
+# over a few days and then has nothing left to do.
+YOUTUBE_API_PAGE_BUDGET = int(os.environ.get("MAX_YOUTUBE_API_PAGES", "40"))
+# Report what would be linked without writing it.
+YOUTUBE_LINK_DRY_RUN = os.environ.get("YOUTUBE_LINK_DRY_RUN", "").strip() in (
+    "1",
+    "true",
+    "True",
+    "yes",
+)
 DRY_RUN = os.environ.get("DRY_RUN", "").strip() in ("1", "true", "True", "yes")
 
 USER_AGENT = "GoodFutureMedia-EpisodeSync/1.0 (+https://goodfuturemedia.com)"
@@ -589,8 +613,8 @@ def channel_uploads(channel_id):
 
     Uses the public uploads feed rather than the Data API. That feed needs no
     key and no quota, and its ~15 most recent videos are plenty for a sync that
-    runs hourly and only fills episodes published in the last few weeks. The API
-    would only be needed to reach deeper history.
+    runs hourly and only fills episodes published in the last few weeks. Older
+    episodes need `youtube_api_uploads`, which this is the fallback for.
     """
     url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
     # YouTube throttles bursts by answering 200 with an empty feed rather than
@@ -615,6 +639,75 @@ def channel_uploads(channel_id):
         if vid and entry.get("title"):
             out.append((entry["title"], vid, published))
     return out
+
+
+def youtube_api_uploads(channel_id, page_budget):
+    """
+    A channel's uploads via the Data API, newest first, and the pages spent.
+
+    The uploads playlist id is the channel id with its `UC` prefix swapped for
+    `UU`, so no lookup call is needed. Costs 1 quota unit per 50 videos, unlike
+    `search.list` at 100 per call, which is why search is not used anywhere.
+
+    Returns ([], 0) with no key, on any error, and on quota exhaustion — the
+    caller then falls back to the public uploads feed.
+    """
+    if not YOUTUBE_API_KEY or page_budget <= 0:
+        return [], 0
+
+    out, token, pages = [], None, 0
+    while pages < page_budget:
+        params = {
+            "part": "snippet,contentDetails",
+            "playlistId": "UU" + channel_id[2:],
+            "maxResults": 50,
+            "key": YOUTUBE_API_KEY,
+        }
+        if token:
+            params["pageToken"] = token
+        try:
+            resp = requests.get(
+                "https://www.googleapis.com/youtube/v3/playlistItems",
+                params=params,
+                timeout=30,
+            )
+        except requests.RequestException as exc:
+            log.warning("YouTube API request failed: %s", exc)
+            return out, pages
+        if resp.status_code != 200:
+            reason = ""
+            try:
+                errors = resp.json().get("error", {}).get("errors") or [{}]
+                reason = errors[0].get("reason", "")
+            except ValueError:
+                pass
+            log.warning(
+                "YouTube API returned %s%s; falling back to the public feed.",
+                resp.status_code,
+                f" ({reason})" if reason else "",
+            )
+            return out, pages
+
+        pages += 1
+        payload = resp.json()
+        for item in payload.get("items", []):
+            snippet = item.get("snippet") or {}
+            details = item.get("contentDetails") or {}
+            vid = details.get("videoId")
+            stamp = details.get("videoPublishedAt") or snippet.get("publishedAt")
+            published = None
+            if stamp:
+                try:
+                    published = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+                except ValueError:
+                    published = None
+            if vid and snippet.get("title"):
+                out.append((snippet["title"], vid, published))
+
+        token = payload.get("nextPageToken")
+        if not token:
+            break
+    return out, pages
 
 
 def title_key(title):
@@ -642,6 +735,13 @@ def fill_youtube_links(at, shows):
     if not channels:
         return 0
 
+    log.info(
+        "YouTube links: %d show(s) with a channel. Data API key: %s.",
+        len(channels),
+        "present" if YOUTUBE_API_KEY else "not set (public feeds only)",
+    )
+    pages_left = YOUTUBE_API_PAGE_BUDGET
+
     wanted = {}
     for record in at.list_records(
         EPISODES_TABLE,
@@ -666,11 +766,20 @@ def fill_youtube_links(at, shows):
         if not channel_id:
             log.warning("%s: could not read a channel id from %r.", show["name"], raw)
             continue
-        time.sleep(1)  # 13 channels an hour is modest; do not burst them
-        uploads = channel_uploads(channel_id)
+        uploads, spent = youtube_api_uploads(channel_id, pages_left)
+        pages_left -= spent
+        if not uploads:
+            time.sleep(1)  # do not burst the public feed
+            uploads = channel_uploads(channel_id)
         if not uploads:
             log.warning("%s: no uploads returned for %s.", show["name"], channel_id)
             continue
+        log.info(
+            "%s: %d video(s) from %s.",
+            show["name"],
+            len(uploads),
+            "the API" if spent else "the public feed",
+        )
 
         matched = 0
         for record_id, title, air in episodes:
@@ -696,6 +805,12 @@ def fill_youtube_links(at, shows):
         if matched:
             log.info("%s: matched %d episode(s) to YouTube.", show["name"], matched)
 
+    if updates and YOUTUBE_LINK_DRY_RUN:
+        log.info(
+            "YouTube links: DRY RUN, %d match(es) found and not written.",
+            len(updates),
+        )
+        return 0
     if updates and not DRY_RUN:
         at.update_records(EPISODES_TABLE, updates)
     return len(updates)
