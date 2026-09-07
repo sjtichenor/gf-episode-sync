@@ -349,6 +349,26 @@ segment** — and then took that segment's thumbnail as the episode art. Ratio
 0.47, comfortably rejected now. Both fields were cleared by hand; the art
 refills from the feed because backfill repairs an empty `Episode Art`.
 
+### What the API actually bought, measured
+
+First run with deep paging and the length rule, 2026-09-07 17:00 — **39 links in
+one pass**, against 6 the hour before:
+
+| Show | Linked | Videos read |
+| --- | --- | --- |
+| The Morning Meeting | 22 | 300 |
+| This Week in Startups | 7 | 50 |
+| All-In | 4 | 50 |
+| This Past Weekend w/ Theo Von | 3 | 50 |
+| Club Random with Bill Maher | 3 | 50 |
+
+Six of the 22 Morning Meeting links were checked against the real videos: length
+ratios 0.95–0.97 and titles matching the episode titles. They are the archived
+livestreams, which is what the show's full episodes are.
+
+The budget also spread as intended — no channel took more than 300 videos, where
+Breaking Points alone had taken 2,000.
+
 ### A show set to Don't Mine is skipped for YouTube links
 
 Breaking Points was set to `Don't Mine` on 2026-09-07 at Spencer's request: it
