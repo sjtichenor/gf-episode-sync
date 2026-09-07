@@ -497,18 +497,28 @@ TITLE_STOP = set(
 
 def channel_id_from(value):
     """
-    A channel id from whatever someone pasted: a UC... id, a handle, or a URL.
+    A channel id from whatever someone pasted: a UC... id, a channel URL, or a
+    handle.
 
-    Handles and /c/ URLs have to be resolved by fetching the page, because only
-    the id works with the uploads feed. The id is right there in the HTML, so
-    this needs no API key.
+    A `/channel/UC.../` URL already contains the authoritative id, so take it
+    and do not fetch anything. Only handles and vanity URLs need resolving.
+
+    When a fetch is needed, read the page's own `<link rel="canonical">` first.
+    An earlier version grabbed the first `"channelId"` in the HTML, which is not
+    necessarily the page's own channel -- a YouTube channel page mentions other
+    channels -- and it silently resolved 4 of 6 stored channels to somebody
+    else's. That produced missed matches, and could have produced wrong ones.
     """
     value = (value or "").strip()
     if not value:
         return None
-    direct = UC_RE.search(value)
-    if direct and "youtube.com" not in value.split(direct.group(1))[0][-30:]:
-        return direct.group(1)
+
+    in_url = re.search(r"/channel/(UC[\w-]{22})", value)
+    if in_url:
+        return in_url.group(1)
+    if re.fullmatch(r"UC[\w-]{22}", value):
+        return value
+
     if value.startswith("@"):
         value = f"https://www.youtube.com/{value}"
     if "youtube.com" not in value:
@@ -518,8 +528,14 @@ def channel_id_from(value):
         resp.raise_for_status()
     except requests.RequestException:
         return None
-    found = re.search(r'"(?:externalId|channelId)":"(UC[\w-]{22})"', resp.text)
-    return found.group(1) if found else None
+    canonical = re.search(
+        r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"',
+        resp.text,
+    )
+    if canonical:
+        return canonical.group(1)
+    owner = re.search(r'"externalId":"(UC[\w-]{22})"', resp.text)
+    return owner.group(1) if owner else None
 
 
 def channel_uploads(channel_id):
@@ -532,13 +548,23 @@ def channel_uploads(channel_id):
     would only be needed to reach deeper history.
     """
     url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
-    try:
-        resp = requests.get(url, timeout=30, headers={"User-Agent": BROWSER_UA})
-        resp.raise_for_status()
-    except requests.RequestException:
+    # YouTube throttles bursts by answering 200 with an empty feed rather than
+    # an error, so an empty result is retried once before being believed.
+    for attempt in range(2):
+        if attempt:
+            time.sleep(3)
+        try:
+            resp = requests.get(url, timeout=30, headers={"User-Agent": BROWSER_UA})
+            resp.raise_for_status()
+        except requests.RequestException:
+            return []
+        parsed = feedparser.parse(resp.content)
+        if parsed.entries:
+            break
+    else:
         return []
     out = []
-    for entry in feedparser.parse(resp.content).entries:
+    for entry in parsed.entries:
         vid = (entry.get("yt_videoid") or "").strip()
         published = entry_air_date(entry)
         if vid and entry.get("title"):
@@ -595,6 +621,7 @@ def fill_youtube_links(at, shows):
         if not channel_id:
             log.warning("%s: could not read a channel id from %r.", show["name"], raw)
             continue
+        time.sleep(1)  # 13 channels an hour is modest; do not burst them
         uploads = channel_uploads(channel_id)
         if not uploads:
             log.warning("%s: no uploads returned for %s.", show["name"], channel_id)
