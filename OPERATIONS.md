@@ -319,6 +319,25 @@ channel), **EconTalk** (nothing resolved), **Trading Places** (channel banned).
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
 
+**A trap worth not repeating.** The first version resolved the channel id by
+fetching the channel page and taking the first `"channelId"` in the HTML — even
+when the URL already contained the id. A channel page mentions other channels,
+so this silently resolved **4 of 6 stored channels to somebody else's**, and
+Conversations with Tyler and Founders were matched against the wrong uploads
+entirely. Nothing failed loudly; they simply never matched, which is easy to
+mistake for "the show re-titles its videos". A `/channel/UC...` URL is now
+trusted as-is with no fetch, and a handle resolves via the page's own
+`<link rel="canonical">`.
+
+The saving grace is that a wrong channel produces *no* matches rather than wrong
+ones, because the titles do not align — the same property that makes the
+threshold safe.
+
+**YouTube throttles bursts by returning 200 with an empty feed**, not an error,
+so an empty uploads list is retried once before being believed, and channels are
+fetched a second apart. Beware when testing by hand: hammering the uploads feed
+makes healthy channels look dead.
+
 ### Two art fields: landscape and square
 
 `Episode Art` (`fldSGEgzNTZAME4IE`) is the primary — the YouTube thumbnail when
