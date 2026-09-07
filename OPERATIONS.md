@@ -349,6 +349,45 @@ segment** — and then took that segment's thumbnail as the episode art. Ratio
 0.47, comfortably rejected now. Both fields were cleared by hand; the art
 refills from the feed because backfill repairs an empty `Episode Art`.
 
+### A show set to Don't Mine is skipped for YouTube links
+
+Breaking Points was set to `Don't Mine` on 2026-09-07 at Spencer's request: it
+publishes segments rather than full episodes, so there is nothing to link, and
+looking anyway spends quota and can only produce a wrong link — which it did.
+`load_shows` now carries the show's `Mining Priority` and `fill_youtube_links`
+skips `Don't Mine` shows outright.
+
+Episodes for such a show still sync into the table. Only the YouTube work stops.
+
+### The 30-minute floor does not govern Sam Harris
+
+Worth writing down, because the obvious worry is wrong. Making Sense puts only
+the first ~20 minutes on YouTube behind a paywall, so it looks like the show a
+length floor would hurt. It is not: the floor applies **only** to episodes whose
+own length the feed never gave us, and all 113 of those belong to four shows —
+How I Invest (78), Trading Places (30), BG2Pod (4), Pod Save America (1). None
+is Making Sense.
+
+His episodes carry lengths of 23:32, 24:00 and 25:32 — the feed publishes the
+same free cut — so the ratio rule governs him, and a ~20-minute video against a
+23:32 episode scores 0.85, above the 0.8 threshold. The floor stays at 30
+minutes because the four shows it does govern are all long-form, and lowering it
+would only widen the window for a clip to match.
+
+### Short feed items are mostly not full episodes
+
+Checked 2026-09-07, after Spencer doubted a 17-minute This Week in Startups:
+
+| Show | What the short items actually are |
+| --- | --- |
+| This Week in Startups | side series — "Wilson Sonsini Startup Legal Basics", "AI Basics", not the flagship |
+| The Diary Of A CEO | titled "Most Replayed Moment: …" — clips published into the feed |
+| Prof G Markets | "Prof G Markets Is Taking A Break — You Should Too", an announcement |
+| Making Sense | #489/#490/#491, the numbered episodes, free paywall cuts |
+| Talking Tokens, Trading Places | genuinely short episodes of a short-form show |
+
+He was right and an earlier version of this doc oversold them as full episodes.
+
 ### The Morning Meeting's full episodes are archived livestreams
 
 Its `/videos` tab is almost entirely clips — 29 of 30 run under 16 minutes. The

@@ -59,6 +59,8 @@ F_SHOW_NAME = "Show Name"
 F_RSS_URL = "RSS Feed URL"
 F_AUTO_ADD = "Auto-Add Episodes"
 F_SHOW_YOUTUBE = "YouTube Channel"
+F_SHOW_PRIORITY = "Mining Priority"
+DONT_MINE = "Don't Mine"
 
 # Full Episodes
 F_EP_TITLE = "Episode Title"
@@ -510,7 +512,14 @@ def entry_description(entry):
 def load_shows(at):
     shows = []
     for record in at.list_records(
-        SHOWS_TABLE, fields=[F_SHOW_NAME, F_RSS_URL, F_AUTO_ADD, F_SHOW_YOUTUBE]
+        SHOWS_TABLE,
+        fields=[
+            F_SHOW_NAME,
+            F_RSS_URL,
+            F_AUTO_ADD,
+            F_SHOW_YOUTUBE,
+            F_SHOW_PRIORITY,
+        ],
     ):
         fields = record.get("fields", {})
         if not fields.get(F_AUTO_ADD):
@@ -528,6 +537,7 @@ def load_shows(at):
                 "name": fields.get(F_SHOW_NAME) or record["id"],
                 "url": url,
                 "youtube": (fields.get(F_SHOW_YOUTUBE) or "").strip(),
+                "priority": fields.get(F_SHOW_PRIORITY) or "",
             }
         )
     return shows
@@ -827,7 +837,14 @@ def fill_youtube_links(at, shows):
     should not — it publishes re-cut segments under new titles, so the video is
     genuinely not the episode. Shows like that should be left without a channel.
     """
-    channels = [(s, (s.get("youtube") or "").strip()) for s in shows]
+    # A show nobody will mine does not need links, and looking for them costs
+    # quota and can only produce wrong ones: Breaking Points publishes segments
+    # rather than full episodes, and a segment is what it matched.
+    channels = [
+        (s, (s.get("youtube") or "").strip())
+        for s in shows
+        if s.get("priority") != DONT_MINE
+    ]
     channels = [(s, c) for s, c in channels if c]
     if not channels:
         return 0
