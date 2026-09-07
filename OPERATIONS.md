@@ -348,13 +348,26 @@ from his browser and each verified against its own feed before saving:
 | EconTalk | EconTalk | 0/8 |
 | Breaking Points | Breaking Points | 0/8 |
 
-The three zeros are **now a verified property of those channels, not a guess**:
-they post segments and clips under their own headlines rather than the full
-episode under its feed title. Whether a full-episode video exists deeper than
-the 15 the uploads feed returns is still unknown — answering that needs the Data
-API, which can page the whole uploads playlist for 1 quota unit per 50 videos.
-Storing the correct channel costs nothing either way, and the match threshold
-means a wrong guess produces no link rather than a bad one.
+The three zeros are **a verified property of those channels, not a guess**: they
+post segments under their own headlines rather than the full episode under its
+feed title.
+
+For **Breaking Points** this is settled and needs no further work. Measured
+2026-09-07: its channel posts **5 videos a day of 10–30 minutes** (14, 13, 30,
+10, 18, 14 for the six most recent) while its feed episodes run a median of **54
+minutes**. Each show is cut into roughly five topic segments, so there is no
+full-episode video in existence to link. Nothing about the matcher can change
+that, and a future reader should not spend time trying.
+
+The channels stay stored anyway. They cost one request an hour, the threshold
+means a non-match produces nothing rather than something wrong, and if any of
+these shows ever posts a full episode it will link on the next run.
+
+**A thought worth keeping for later:** for a show that segments like this, the
+segments are arguably *more* useful to a miner than a full episode would be —
+they are already cut by topic. That would be a different field holding several
+videos per episode, not the single `YouTube Link`, so it is a feature rather
+than a fix.
 
 Because this runs before the art pass, an episode that gets a link also gets its
 thumbnail in the same run.
