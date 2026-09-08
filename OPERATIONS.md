@@ -1091,3 +1091,23 @@ Lesson from the first push: `.gitignore` had no trailing newline, so an
 appended pattern glued onto the last line and ignored nothing; a 2,644-file venv
 went into a public repo and had to be rewritten out. Always `printf` the whole
 file or check the final newline before appending.
+
+### First TikTok login under our own app — 2026-09-08 21:54 UTC
+
+Worked end to end on the first try: consent → token exchange → profile and
+10 videos rendered → tokens encrypted → row `recl6nJMuj6kSitXW` in `TikTok Auth`
+for `good.conspiracies` (Sandbox, all four scopes, refresh valid to
+2027-09-08). Server logged one line and nothing sensitive.
+`api.goodfuturemedia.com` serves a valid certificate (Google Trust Services).
+
+Spencer recorded the flow and submitted the Production app for TikTok review
+the same evening. **After the upload, `AUTH_LINK_SECRET` must be rotated** — the
+login link's `?key=` is visible in the video. While review is pending, the
+sandbox pair stays on `gf-api`; on approval, swap in the production client
+key/secret and set `TIKTOK_ENVIRONMENT=Production`.
+
+Next for TikTok: rebuild `tiktok/sync_tiktok_*.py` to read rows from
+`TikTok Auth`, decrypt with `load_tokens`, refresh, and **write the rotated
+refresh token back** (re-encrypted) — the piece that ends the 365-day cliff.
+Then re-authorise each remaining account through the login link (up to 10 as
+sandbox target users; unlimited once production is approved).
