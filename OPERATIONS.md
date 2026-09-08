@@ -1047,3 +1047,47 @@ show the real website domain.
 The site and its DNS are on WordPress.com (Atomic; nameservers ns1–3.wordpress.com;
 site id 230609993). `api.goodfuturemedia.com` will be a CNAME there to the Render
 service that hosts the callback.
+
+### `gf-api` — the first service under Spencer's own repo (2026-09-08)
+
+Render web service **`gf-api`** (`srv-dag7ohtbedkc73fq9elg`, starter plan,
+`https://gf-api-6nbe.onrender.com`) deploys `sjtichenor/gf-airtable-automation`
+(public; tokens stripped and history verified clean) and runs
+`uvicorn tiktok_auth:app`. It is meant to sit at **`api.goodfuturemedia.com`**
+(CNAME at WordPress.com to `gf-api-6nbe.onrender.com`, plus the custom domain
+added on the service in Render).
+
+What it does: the TikTok Login Kit flow under Spencer's own developer app.
+`/tiktok/login?key=…` → TikTok consent → `/tiktok/callback` swaps the code for
+tokens, reads the profile and latest videos (the app-review demo), and writes the
+token set **Fernet-encrypted** to the new `TikTok Auth` table
+(`tblkAwVZQWrsXH8Ee`), keyed on `open_id` + environment. The ciphertext is
+useless without `TOKEN_ENCRYPTION_KEY`, which exists only in Render. Losing that
+key means re-authorising every account.
+
+Environment (non-secret ones were set at creation):
+
+| Variable | Set by | Value |
+| --- | --- | --- |
+| `TIKTOK_ENVIRONMENT` | done | `Sandbox` now; `Production` once TikTok approves the app |
+| `TIKTOK_REDIRECT_URI` | done | `https://api.goodfuturemedia.com/tiktok/callback` |
+| `AIRTABLE_BASE_ID`, `TIKTOK_AUTH_TABLE_ID` | done | the base and the TikTok Auth table |
+| `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | Spencer | the **sandbox** pair from the TikTok portal for now |
+| `AUTH_LINK_SECRET` | Spencer | random; `python3 -c "import secrets;print(secrets.token_urlsafe(32))"` |
+| `TOKEN_ENCRYPTION_KEY` | Spencer | Fernet key; `python3 -c "import os,base64;print(base64.urlsafe_b64encode(os.urandom(32)).decode())"` |
+| `AIRTABLE_PERSONAL_ACCESS_TOKEN` | Spencer | the GF Automations PAT |
+
+`/health` lists any of the five that are missing, so a half-configured service
+says so instead of failing at login time.
+
+Why not PKCE: TikTok's docs make `code_verifier` mobile/desktop-only; the web
+flow uses `state` (10-minute TTL, in memory — fine for one instance). Why
+encrypt into Airtable rather than a Redis: no new paid infrastructure, base
+collaborators cannot read the tokens, and the sync can write the **rotated**
+refresh token back — the docs say a refresh may return a new one that must
+replace the old, which is exactly what the contractor's code never did.
+
+Lesson from the first push: `.gitignore` had no trailing newline, so an
+appended pattern glued onto the last line and ignored nothing; a 2,644-file venv
+went into a public repo and had to be rewritten out. Always `printf` the whole
+file or check the final newline before appending.
