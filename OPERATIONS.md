@@ -1018,3 +1018,32 @@ persist the rotated refresh token (to Airtable) so it never ages out.
 6. Last: swap the workspace GitHub credential (one credential, bound to Farhan;
    swapping it early breaks auto-deploy on all 17 of his services), then remove
    him from Airtable, Meta and Render.
+
+### TikTok developer app — form values (draft could not be saved without a demo video)
+
+Organization **Good Future Media**, app **Good Future Media Analytics**, created
+2026-09-08 at developers.tiktok.com under Spencer's login. Domain
+`goodfuturemedia.com` verified by DNS TXT (covers all subdomains). TikTok
+validates the demo video on *Save*, not only on *Submit*, so the form cannot be
+saved until the OAuth flow exists to record. Values entered, for re-entry:
+
+| Field | Value |
+| --- | --- |
+| Category | Business |
+| Description | Reads our own accounts' follower counts and video performance into an internal Airtable dashboard |
+| Terms of Service URL | https://goodfuturemedia.com/terms/ |
+| Privacy Policy URL | https://goodfuturemedia.com/privacy/ |
+| Platforms | Web only |
+| Web/Desktop URL | https://goodfuturemedia.com |
+| Products | Login Kit only (Display API is no longer a separate tile; its scopes sit under Login Kit) |
+| Scopes | user.info.basic (automatic), user.info.profile, user.info.stats, video.list |
+| Redirect URI | `https://api.goodfuturemedia.com/tiktok/callback` — exact-match; the code must use this string |
+
+Explanation text (967/1000 chars) is in the conversation of 2026-09-08 and
+maps each scope to the fields the code reads. The demo video must be recorded
+against **Sandbox** (TikTok requires sandbox for first-time approval) and must
+show the real website domain.
+
+The site and its DNS are on WordPress.com (Atomic; nameservers ns1–3.wordpress.com;
+site id 230609993). `api.goodfuturemedia.com` will be a CNAME there to the Render
+service that hosts the callback.
