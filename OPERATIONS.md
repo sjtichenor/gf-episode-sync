@@ -254,6 +254,38 @@ many fields are added. Verified 2026-09-04: of the 107 episodes with no Episode
 Art, **all 107 have no Feed GUID** — every synced episode already had art. Those
 rows need a separate one-off fix, or hand editing.
 
+### Videos derive their Show, they do not store it
+
+Added 2026-09-07. Videos had no Show field; Spencer asked whether to add a
+direct link or rely on the existing ones. Neither existing path covers the
+catalogue on its own, so `Show` is a formula over two lookups:
+
+- `Show (from Full Episode)` (`fld0uqrZQ0Nb01iLY`) — **authoritative.** A clip's
+  show is a fact about its episode, not an independent attribute. Only 151 of
+  5,513 videos are linked to an episode, so it is mostly empty today.
+- `Show (from Channel)` (`fld5DYQaGBPpk5xs6`) — **fallback.** Valid only because
+  11 of the 34 channels carry a single show each (BG2, 20VC, All-In, Trading
+  Places, ThursdAI, David Weisburd, Pirate Wires, The First, 5 Year Frontier and
+  the two Solana channels).
+- `Show` (`fldKDD0we1AXdTWHn`) — prefers the episode, falls back to the channel,
+  blank when genuinely unknown.
+
+**A second editable Show link was deliberately not added.** Two writable sources
+of truth drift apart, and the derived one is right whenever it is populated.
+
+**Do not link an aggregator channel to a Show.** Good Politics, Good Crypto,
+Good History, Good Billionaires and the rest are Good Future's own output
+brands, carrying clips cut from many source podcasts — Good Politics alone holds
+1,016 videos, including "Friedberg predicts socialism will overtake the USA,
+Nate Silver Reacts", which is an All-In clip. Linking such a channel to one show
+would make `Show (from Channel)` assert that every clip on it came from that
+show. Their emptiness is load-bearing.
+
+Coverage the day it was built: **3,071 of 5,513 videos (56%)** filled with no
+manual work. The remaining 2,442 are on aggregator channels and need the clip
+linked to its episode — the same job the transcript matching does, which also
+yields the episode itself rather than only the show.
+
 ### Shows and Channels are separate tables
 
 Shows = what we clip **from** (sources). Channels = where we publish **to**
