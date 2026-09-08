@@ -925,3 +925,96 @@ The 5 still empty, all needing a human:
   cut, or only clips. Recommendation: **do not delete.** 108 rows out of 5,478
   cost nothing, Full Episodes is already the canonical record, the clips are
   linked to it, and deletion is irreversible while tidiness is not urgent.
+
+## Taking over the contractor's automations (started 2026-09-08)
+
+Farhan Afridi (`fafridi047@gmail.com`, GitHub `Farhan5217`) built 17 of the 18
+Render services. His two repos are **private and Spencer has no access** —
+verified: 404 unauthenticated and 404 as `sjtichenor`. Render stores only a
+pointer to a repo, never browsable source.
+
+### The code is on disk now
+
+Pulled over SSH from the running instances (Render → Account Settings → SSH
+Public Keys; key `~/.ssh/render`, wired via `~/.ssh/config`). Render SSH is
+only offered on web services and workers, not cron jobs — but the two live
+non-cron services happened to cover both repos:
+
+| Local copy | Source | Contents |
+| --- | --- | --- |
+| `~/Projects/gf-airtable-automation` | `webhook`, `/opt/render/project/src`, branch `whook` | 16 Python files, 7,038 lines — all 9 live services |
+| `~/Projects/gf-dropbox-automation` | `spencer-dropbox-automation-background`, `/app` | `main.py` (219 lines): openai + moviepy + dropbox, the transcription pipeline |
+
+`.git` was deliberately not copied, so these have no history and no remote.
+`.env_old` was deliberately left on the webhook box — almost certainly a
+credential dump — and should be inspected by Spencer, never pulled into a repo.
+
+**Not yet committed anywhere.** Before the first commit, the two hardcoded
+tokens have to go (next section).
+
+### One real secret was in the source
+
+`tiktok/sync_tiktok_posts.py:15` and `tiktok/sync_tiktok_followers.py:14` read
+`os.getenv('AIRTABLE_PERSONAL_ACCESS_TOKEN', '<live token>')` — a working
+Airtable PAT as the fallback. The fallback also fails silently: a missing env var
+quietly keeps using the stale token instead of erroring. Every other flagged
+match was a false alarm (table ids, base ids, API base URLs). The Dropbox repo is
+clean. Fix: `os.environ[...]` with no default.
+
+The token turned out to be **Farhan's own** (issued under his Airtable account)
+so it cannot be revoked by Spencer — it dies when Farhan is removed from the base.
+
+### Airtable is decoupled — verified 2026-09-08 19:30 UTC
+
+A service account, **`automations@goodfuturemedia.com` ("GF Automations")**, was
+created as a Google Group (not an alias — a group outlives any one member), added
+to the base, and issued a PAT scoped to `data.records:read/write` +
+`schema.bases:read`, this base only. Spencer pasted it into all ten services.
+
+Proof: Posts records modified 19:28–19:30 are attributed to GF Automations. The
+18:00 run had still shown Farhan because **a cron job reads its environment when
+the run starts** — that run began 18:00:39, before the paste landed. Cron jobs
+also do **not** record env changes as deploys (web services do), so deploy
+history cannot confirm a paste on a cron; only a fresh run can.
+
+**Removing Farhan from the Airtable base is now safe** (kills his token, nothing
+depends on it) — but see Meta below before removing him from anything else.
+
+### Where the social syncs actually write
+
+Not Videos. `Posts` (`tblMpYJQjbb5yuKfC`, 11,275 records, one per platform post)
+and `Channels`. Videos links to Posts via `fld9ifiDP9LQvdijH`. Posts has
+`lastModifiedBy` (`fldMpe7Zlt3ad0EPR`) and `lastModifiedTime`
+(`fld8PraNw2sT3RhAI`), which is how identity was verified. Note Airtable records
+no modification when a write sets the same values, so a script "successfully
+updating" a record with unchanged view counts leaves no fingerprint.
+
+### The other credentials, and who owns them
+
+| Credential | Owner | Status |
+| --- | --- | --- |
+| `YOUTUBE_API_KEY` | **Spencer** — GCP project "Social Media Stats" in the goodfuturemedia.com org, key created 2025-07-11, Farhan never in IAM | Already independent; Google keys belong to the project, not a person |
+| `TWITTER_BEARER_TOKEN` | **Spencer** — developer app under his X account | Regenerated 2026-09-08 and re-pasted; a bearer token needs no login, which is why Farhan could hold it without the password |
+| `META_USER_ACCESS_TOKEN`, `FACEBOOK_PAGES` (page tokens baked into env) | **Farhan** — his personal Facebook user, granted admin on the Pages | **Removing his Meta admin = instant FB + IG outage.** Fix: Business Manager System User, reuse Spencer's own "GF data fetcher" app; not started |
+| `TIKTOK_CLIENT_KEY/SECRET`, `TIKTOK_ACCOUNTS` (per-account access + refresh tokens) | **Farhan** — his TikTok developer app; each account was authorised via his OAuth link | Fix: own developer app (needs TikTok review, days–weeks) then re-authorise every account; not started |
+
+### TikTok has a clock on it regardless of Farhan
+
+`refresh_access_token` updates the rotated tokens **in memory only** and never
+persists them; every run reuses the original refresh token from `TIKTOK_ACCOUNTS`.
+TikTok refresh tokens expire 365 days after issue. The oldest accounts were
+authorised around September 2025. When each one lapses, that account's sync
+fails until someone re-does the login flow, with no warning. All accounts were
+still refreshing successfully at 12:01 UTC on 2026-09-08. The rebuild must
+persist the rotated refresh token (to Airtable) so it never ages out.
+
+### Remaining order of work
+
+1. Strip the two hardcoded tokens; `git init` both local copies under `sjtichenor`.
+2. Submit Spencer's own TikTok developer app — the long pole.
+3. Meta: System User in Business Manager, mint page tokens, replace env vars.
+4. Re-authorise each TikTok account through the new app.
+5. Rebuild services into Render under Spencer's repos, in parallel, then cut over.
+6. Last: swap the workspace GitHub credential (one credential, bound to Farhan;
+   swapping it early breaks auto-deploy on all 17 of his services), then remove
+   him from Airtable, Meta and Render.

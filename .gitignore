@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 .env
+# Personal machine settings. This repo is public, so keep local config out of it.
+.claude/settings.local.json
