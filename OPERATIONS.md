@@ -1111,3 +1111,37 @@ Next for TikTok: rebuild `tiktok/sync_tiktok_*.py` to read rows from
 refresh token back** (re-encrypted) — the piece that ends the 365-day cliff.
 Then re-authorise each remaining account through the login link (up to 10 as
 sandbox target users; unlimited once production is approved).
+
+### Meta cutover, 2026-09-08 — partial, with an incident to repair
+
+**Finding:** the Facebook sync under Farhan's tokens had been silently dead for
+weeks. The 12:00 UTC run skipped all 771 posts ("Could not determine the owner
+of post … with any configured token"); the top Facebook view counts were last
+written in June–July. "Last successful run" only meant exit code 0.
+
+**What was done:** the Business already owned a System User named "Farhan"
+(id 61579881404400 — Meta allows one Admin system user, so it was reused, not
+replaced). All Pages, Instagram accounts and the GF Data Fetch app were assigned
+to it; a never-expiring token was generated with the five permissions the token
+dialog offered (`pages_show_list`, `pages_read_engagement`, `instagram_basic`,
+`instagram_manage_insights`, `business_management`); `FACEBOOK_PAGES` was rebuilt
+from `/me/accounts` and pasted with `META_USER_ACCESS_TOKEN` on Facebook,
+Instagram and webhook.
+
+**Incident:** the new page tokens resolve post ownership and likes, but
+`/{post}/video_insights` returned 403 — it needs `read_insights` **and**
+`pages_manage_engagement`, neither of which the app exposes yet. Farhan's code
+treats a failed insights call as `views = 0` and writes it. The triggered run
+**zeroed Views on 119 Facebook posts** (Posts table, lastModifiedBy GF
+Automations, Views = 0) before Spencer cancelled it. Recoverable: once the two
+permissions are on the token, a rerun writes current real counts.
+
+Fixed in `sjtichenor/gf-airtable-automation` (`fb/main.py`, commits 65c14d4 +
+9cb6fad): a failed insights call leaves Views out of the write. The running
+Facebook service still deploys Farhan's repo, so that fix is not live there.
+
+**Do not trigger the Facebook service again until** the app exposes
+`read_insights` and `pages_manage_engagement` (App Dashboard → Use cases →
+customize), a fresh system-user token carries all seven permissions, and
+`FACEBOOK_PAGES` has been rebuilt from it. Instagram is unaffected by the
+missing permissions (its insights use `instagram_manage_insights`).
