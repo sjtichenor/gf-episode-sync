@@ -1289,6 +1289,42 @@ access could have read page tokens from those runs; page tokens are minted
 from the system-user token, and "Revoke tokens" on the system user
 invalidates them when the time comes.
 
+### Analytics dashboard — `api.goodfuturemedia.com/dashboard` (added 2026-09-09)
+
+Lives in the gf-api service (`srv-dag7ohtbedkc73fq9elg`), code under
+`dashboard/` in `sjtichenor/gf-airtable-automation`, mounted into the FastAPI
+app in `tiktok_auth.py`. Spencer asked for a site with more design freedom
+than Airtable interfaces.
+
+- **Data**: `dashboard/data.py` pulls Shows, Channels, Videos, Posts, Follower
+  Logs, Team and Client Accounts every `DASHBOARD_REFRESH_SECONDS` (900) in a
+  background thread, by **field id** (`returnFieldsByFieldId`), so renaming a
+  field in Airtable does not break it; adding a table or field means editing
+  the id maps at the top of that file. One snapshot is kept in memory; the
+  first build after a deploy takes ~100 s (11k posts at Airtable's 5 req/s),
+  during which `/dashboard/api/data` answers 503 and the page shows
+  "warming up". A refresh failure keeps the last good snapshot and is shown
+  by `/dashboard/api/status`.
+- **Auth**: `dashboard/auth.py`. One team password, `DASHBOARD_PASSWORD` env
+  var on gf-api; a correct login sets a signed HttpOnly cookie for 30 days.
+  `DASHBOARD_SECRET` (optional) signs it; without it the key derives from the
+  password, so changing the password logs everyone out. Ten wrong guesses
+  from one address → ten-minute lockout. Next step if the audience grows:
+  Google sign-in restricted to the domain.
+- **Page**: `dashboard/index.html`, vanilla JS + Chart.js 4 from cdnjs, Inter
+  from Google Fonts. Filters (show, account, editor, platform chips — shift-
+  click isolates one — range, GF-owned) live in the URL, so "Copy link"
+  shares a filtered view. Light/dark theme toggle remembered per browser.
+- **Local layout work**: `DASHBOARD_FAKE_DATA=1` serves synthetic numbers and
+  skips the login. `.claude/launch.json` in gf-episode-sync has a
+  `gf-api-dashboard-fake` config on port 8765; headless Chrome screenshots
+  were used to check it because the in-app browser tools were unavailable.
+- Views on the page are lifetime totals per post as last synced; follower
+  history starts 2026-09-09 (Follower Logs), so change columns read "no
+  earlier snapshot" until there is a second day.
+- Not yet: per-client share pages (filters by show cover it for now), YouTube
+  retention, anything per-day for views (would need a Posts view log).
+
 ### `gf-follower-snapshot` — daily follower history (created 2026-09-09 06:15 UTC)
 
 Render cron `crn-dagfipid0e5s73c9rcn0`, Spencer's repo, `0 9 * * *` (after the
