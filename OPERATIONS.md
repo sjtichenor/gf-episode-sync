@@ -1259,3 +1259,18 @@ trigger is the seven-Reels-metric probe (`post_impressions_unique`,
 `fb_reels_replay_count`, `post_video_followers`,
 `post_video_social_actions`, `post_video_retention_graph`), each alone and in
 groups. Scheduled runs are probe-only and write nothing until it is cleared.
+
+### `gf-follower-snapshot` — daily follower history (created 2026-09-09 06:15 UTC)
+
+Render cron `crn-dagfipid0e5s73c9rcn0`, Spencer's repo, `0 9 * * *` (after the
+overnight follower syncs), runs `followers/snapshot_followers.py`. Copies the six
+per-platform follower fields on Channels into **Follower Logs**
+(`tblsSv5OlermzmpZh`) — one row per channel per platform per day, `Previous
+Count` from the latest earlier row, idempotent within a day, `SNAPSHOT_DATE` for
+backfills. No platform API calls. Platform labels: Instagram, TikTok, X,
+YouTube, Facebook, Threads.
+
+Needs `AIRTABLE_PERSONAL_ACCESS_TOKEN` pasted by Spencer; until then a run
+fails at startup and writes nothing. Facebook follower history will read flat
+until the Facebook followers pass actually matches channels (see above). Growth
+chart interface: to build once rows exist.
