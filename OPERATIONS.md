@@ -1199,7 +1199,20 @@ instead of two, halving load on the app's hourly quota — with
 on a capped run: "Garret Langley TED Flock 4" went from Views 0 / Likes 0 to
 **17,358 / 31** in Airtable at 02:29:24. The full run repairs the rest.
 
-Still open: posts on **two pages** skip with "Could not find valid access
+Resolved by Spencer, 2026-09-09: the two skipping pages are **expected**.
+**ThursdAI** — Good Future has no Facebook agency access at all; nothing to
+pull. **Trading Places** — agency access covers their Instagram only; the
+Facebook Page was never set up on their side. Both skip cleanly (never zeroed).
+
+Consequence for the Instagram cutover: `insta_sync.py` discovers accounts
+*through Facebook Pages* (`/me/accounts` → page → `instagram_business_account`),
+so an Instagram account we can reach but whose Page we cannot — Trading Places
+— will not be found that way. The rebuilt Instagram sync needs a second
+discovery path via the Business's Instagram accounts
+(`/{business-id}/instagram_accounts`, plus owned ones) before it can be trusted
+for that account.
+
+(Earlier note, superseded: posts on **two pages** skip with "Could not find valid access
 token" — the rebuilt `FACEBOOK_PAGES` holds 12 pages, the first token's list
 held 13. ThursdAI and Trading Places posts are the ones seen skipping. Assign
 those Pages to the system user in Business Settings, regenerate the page list
