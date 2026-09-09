@@ -1322,6 +1322,30 @@ than Airtable interfaces.
 - Views on the page are lifetime totals per post as last synced; follower
   history starts 2026-09-09 (Follower Logs), so change columns read "no
   earlier snapshot" until there is a second day.
+- **Team page** (`/dashboard/team`, `dashboard/activity.py`, `team.html`,
+  added 2026-09-09 evening): who did what, derived from Video Status Logs —
+  leaving Up For Grabs/Assigned = editor picked up/started; leaving Editing =
+  finished draft (time in Editing recorded); leaving Needs More Edits /
+  Awaiting Revision = revision started; leaving Internal Review = director
+  approved or sent back; a post's created time = the social manager's action
+  (Posted By is filled on every recent post). Days are in `DIGEST_TZ`
+  (America/New_York). Cards per person with a heatmap, quiet badge, in-
+  progress list; click a day for the event list; pipeline counts and stuck
+  videos (thresholds in `STUCK_AFTER_DAYS`). Status logs are 25k+ rows, so
+  the snapshot pulls only the last `DASHBOARD_ACTIVITY_DAYS` (120) plus open
+  rows, via filterByFormula on the *names* "Start Time"/"End Time" — renaming
+  those two fields breaks the pull. Caveat Spencer accepted: time in Editing
+  is elapsed time, not hours worked.
+- **Daily Slack digest** (`dashboard/slack.py`): yesterday per person
+  (Friday–Sunday on Mondays), quiet people, pipeline, stuck videos. Posted to
+  a group DM with Spencer and Chris Madden at `DIGEST_HOUR` (9) local on
+  `DIGEST_DAYS` (12345) by a thread inside gf-api; a redeploy inside the
+  9:00–9:10 window could send twice. Needs `SLACK_BOT_TOKEN` (bot scopes
+  chat:write, im:write, mpim:write). Recipients: `DIGEST_SLACK_USER_IDS`, or
+  `DIGEST_RECIPIENTS` names (default "Spencer Tichenor,Chris P Madden")
+  resolved through the Team table's Slack ID field. Preview at
+  `/dashboard/api/digest?date=YYYY-MM-DD`; `POST /dashboard/api/digest/send`
+  sends now (both need the dashboard cookie).
 - Not yet: per-client share pages (filters by show cover it for now), YouTube
   retention, anything per-day for views (would need a Posts view log).
 
