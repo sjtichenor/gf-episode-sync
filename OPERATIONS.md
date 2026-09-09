@@ -1235,11 +1235,12 @@ can see:
 
 | Channel | Skipped | Updated | Why |
 | --- | --- | --- | --- |
-| Good Politics | 189 | 0 | **the page dropped out of the system user's assignments** between the two token generations (13 pages → 12). Re-assign, regenerate `FACEBOOK_PAGES` from `/me/accounts`, paste. Biggest Facebook page — fix first |
+| Good Politics | 189 | 0 | **the Facebook page was banned by Meta** (Spencer, 2026-09-09; Meta apparently read a political page run by a distributed team as a foreign operation). Nothing to fix; explains the 13 → 12 page count |
 | ThursdAI | 155 | 0 | no Facebook access at all — expected |
 | BG2 | 44 | 33 | posts live on two pages; one is not accessible |
 | Trading Places | 25 | 0 | Instagram access only — expected |
-| Steelman / Techno Optimist / Good Conspiracies | 5 / 4 / 2 | 5 / 188 / 9 | stragglers; likely deleted posts or a second page |
+| Steelman | 5 | 0 | **its Facebook pages (plural) were also banned** — expected |
+| Techno Optimist / Good Conspiracies | 4 / 2 | 188 / 9 | stragglers; likely deleted posts |
 
 **Facebook follower counts have never updated.** The followers pass matches
 channels to pages by reading a Channels field called `Channel`; the primary
