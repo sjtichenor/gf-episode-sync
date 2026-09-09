@@ -1221,3 +1221,40 @@ until then (skipped, not zeroed).
 
 `FB_PROBE` and `FB_MAX_POSTS` are cleared on `gf-facebook`; the code keeps both
 for next time.
+
+### Facebook repair run — 2026-09-09 02:32–03:15 UTC, and what it revealed
+
+`gf-facebook` full run on the fixed code: **353 posts updated, 418 skipped, 0
+errors, no rate-limit hits** (one call per post). Every view count zeroed
+earlier tonight now holds a live number; the 9 Facebook posts still at 0 likes
+have real play counts and are genuine zeros.
+
+The 418 skips are concentrated, and all are "Could not find valid access
+token" — the post's owner page is not among the pages the system-user token
+can see:
+
+| Channel | Skipped | Updated | Why |
+| --- | --- | --- | --- |
+| Good Politics | 189 | 0 | **the page dropped out of the system user's assignments** between the two token generations (13 pages → 12). Re-assign, regenerate `FACEBOOK_PAGES` from `/me/accounts`, paste. Biggest Facebook page — fix first |
+| ThursdAI | 155 | 0 | no Facebook access at all — expected |
+| BG2 | 44 | 33 | posts live on two pages; one is not accessible |
+| Trading Places | 25 | 0 | Instagram access only — expected |
+| Steelman / Techno Optimist / Good Conspiracies | 5 / 4 / 2 | 5 / 188 / 9 | stragglers; likely deleted posts or a second page |
+
+**Facebook follower counts have never updated.** The followers pass matches
+channels to pages by reading a Channels field called `Channel`; the primary
+field is `Social Media Account`, so every channel read as blank and the pass
+logged "Processing 0 channels with Facebook pages" — under Farhan's runs too.
+Fixed in commit 00f5cd8 (field name). It still matches by exact page name
+against the Channels name, so "BG2" vs "BG2 Clips" and "Solana" vs "Solana
+Foundation" will not match; the durable fix is a `Facebook Page ID` field on
+Channels and matching by id. The daily follower snapshot
+(`followers/snapshot_followers.py`) copies whatever the syncs wrote, so until
+this works Facebook follower history will be flat.
+
+`FB_PROBE=1` is set on `gf-facebook` (build 00f5cd8 deploying): the next
+trigger is the seven-Reels-metric probe (`post_impressions_unique`,
+`post_video_avg_time_watched`, `post_video_view_time`,
+`fb_reels_replay_count`, `post_video_followers`,
+`post_video_social_actions`, `post_video_retention_graph`), each alone and in
+groups. Scheduled runs are probe-only and write nothing until it is cleared.
