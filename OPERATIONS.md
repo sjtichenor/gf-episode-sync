@@ -1253,12 +1253,37 @@ Channels and matching by id. The daily follower snapshot
 (`followers/snapshot_followers.py`) copies whatever the syncs wrote, so until
 this works Facebook follower history will be flat.
 
-`FB_PROBE=1` is set on `gf-facebook` (build 00f5cd8 deploying): the next
-trigger is the seven-Reels-metric probe (`post_impressions_unique`,
-`post_video_avg_time_watched`, `post_video_view_time`,
-`fb_reels_replay_count`, `post_video_followers`,
-`post_video_social_actions`, `post_video_retention_graph`), each alone and in
-groups. Scheduled runs are probe-only and write nothing until it is cleared.
+`FB_PROBE=1` is set on `gf-facebook`. Scheduled runs are probe-only and write
+nothing until it is cleared.
+
+Probe results so far (06:00 and 06:24 UTC runs, build 00f5cd8, on The Techno
+Optimist reel 1313936917477249):
+
+| Where asked | Metric | Answer |
+|---|---|---|
+| `/{video}/video_insights` | `fb_reels_total_plays` | 17,358 (matches `views`) |
+| `/{video}/video_insights` | `blue_reels_play_count` | 12,707 (plays excluding replays) |
+| `/{video}/video_insights` | `fb_reels_replay_count` | 4,651 |
+| `/{video}/video_insights` | `total_video_views` | `{"data": []}` |
+| `/{video}/video_insights` | `post_video_avg_time_watched`, `post_video_view_time`, `post_video_followers`, `post_video_social_actions`, `post_video_retention_graph` | 200 with `{"data": []}` each, alone |
+| `/{video}/video_insights` | `post_impressions_unique` | 400 "must be a valid insights metric" |
+| `/{video}/video_insights` | any group containing one of the above | blank `{"data": []}` or 400 — one metric per call |
+| `/{video}/insights` | anything | 400 "nonexisting field (insights)" |
+
+Reading: the `post_*` names are Page-post metrics and belong on the Page-post
+object, `/{page_id}_{video_id}/insights`. That variant never ran because the
+probe had no page id. Build ed72224 (live 06:29 UTC) fixes that: the token
+resolver records the owning page id and the probe asks the Page-post edge for
+`post_impressions_unique`, `post_video_avg_time_watched`,
+`post_video_view_time`, `post_video_followers`, `post_video_social_actions`,
+`post_video_retention_graph`, `post_video_views`,
+`post_reactions_by_type_total` and `post_clicks`, each alone and together,
+plus the post node's `shares`, `reactions.summary(true)` and
+`comments.summary(true)`. Needs one more Trigger Run to read.
+
+Whatever answers becomes one extra call per post in the real sync; the three
+Reels play metrics above already work and will be stored as Plays, Replays
+and Plays Excluding Replays (fields to add on Posts).
 
 ### `gf-follower-snapshot` — daily follower history (created 2026-09-09 06:15 UTC)
 
@@ -1270,7 +1295,8 @@ Count` from the latest earlier row, idempotent within a day, `SNAPSHOT_DATE` for
 backfills. No platform API calls. Platform labels: Instagram, TikTok, X,
 YouTube, Facebook, Threads.
 
-Needs `AIRTABLE_PERSONAL_ACCESS_TOKEN` pasted by Spencer; until then a run
-fails at startup and writes nothing. Facebook follower history will read flat
+`AIRTABLE_PERSONAL_ACCESS_TOKEN` pasted by Spencer 2026-09-09 ~06:20 UTC. The
+06:15 deploy was only the initial build; the script has not run yet (first
+scheduled run 09:00 UTC, or Trigger Run). Facebook follower history will read flat
 until the Facebook followers pass actually matches channels (see above). Growth
 chart interface: to build once rows exist.
