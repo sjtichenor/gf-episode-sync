@@ -1145,3 +1145,38 @@ Facebook service still deploys Farhan's repo, so that fix is not live there.
 customize), a fresh system-user token carries all seven permissions, and
 `FACEBOOK_PAGES` has been rebuilt from it. Instagram is unaffected by the
 missing permissions (its insights use `instagram_manage_insights`).
+
+### Facebook cutover, continued — 2026-09-09 00:00–00:20 UTC
+
+`gf-facebook` (Render `crn-dag9ueek1f9s738cpckg`, our repo, schedule `0 */6`)
+now replaces Farhan's Facebook cron, which is **suspended**. Its first real run
+(00:11, build 05a8df3) had the new token with all seven permissions and page
+tokens re-minted from it — and still wrote wrong data: `video_insights` returned
+**200 with a body lacking `post_video_likes_by_reaction_type`**, so the old
+default of 0 was written as Likes on **58 posts** ("Peter St. Onge" went from 38
+likes to 0). Spencer suspended the job at ~00:20.
+
+Running damage tally on Posts (Facebook rows modified by GF Automations):
+Views = 0 on 119 posts (from the 22:34 run), Likes = 0 on 58 (from the 00:11
+run). All recoverable by one correct run; nothing else was touched.
+
+Code state in `sjtichenor/gf-airtable-automation` (`fb/main.py`), all after
+the 00:11 run started and therefore not yet exercised: Views and Likes start
+as unknown and are never written from a default; an empty insights body is
+logged (bodies never contain tokens) and treated as a failure; a post with no
+obtainable like count is skipped; `FB_MAX_POSTS=N` caps a run for testing and
+prints the raw insights body. `PYTHONUNBUFFERED=1` is set so logs stream.
+
+**Two operational traps learned tonight:**
+- Render's GitHub credential is Farhan's, so pushes to Spencer's repos do
+  **not** auto-deploy (build log says "we don't have access to your repo, but
+  we'll try to clone it anyway"). Every push needs `trigger_deploy` or a
+  dashboard deploy until the credential is swapped.
+- A deploy does not stop an in-progress cron run, and neither did "Cancel run"
+  reliably; **Settings → Suspend Cron Job** did. Runs of the contractor's code
+  buffer stdout, so logs arrive minutes late — check Airtable, not logs, to see
+  what a run is writing.
+
+Next: unsuspend, `Trigger Run` with `FB_MAX_POSTS=3`, read the raw insights
+body, fix whatever it shows (metric name, video vs post id, or access level),
+then remove the cap and run in full.
