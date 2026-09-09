@@ -1253,37 +1253,41 @@ Channels and matching by id. The daily follower snapshot
 (`followers/snapshot_followers.py`) copies whatever the syncs wrote, so until
 this works Facebook follower history will be flat.
 
-`FB_PROBE=1` is set on `gf-facebook`. Scheduled runs are probe-only and write
-nothing until it is cleared.
-
-Probe results so far (06:00 and 06:24 UTC runs, build 00f5cd8, on The Techno
-Optimist reel 1313936917477249):
+**Probe verdict (2026-09-09, The Techno Optimist reel 1313936917477249, runs
+at 06:00, 06:24, 12:00 and 17:21 UTC):**
 
 | Where asked | Metric | Answer |
 |---|---|---|
-| `/{video}/video_insights` | `fb_reels_total_plays` | 17,358 (matches `views`) |
-| `/{video}/video_insights` | `blue_reels_play_count` | 12,707 (plays excluding replays) |
+| `/{video}` node | `views`, `likes.summary(true)`, `created_time` | work (views 17,358 = `fb_reels_total_plays`) |
+| `/{video}/video_insights` | `fb_reels_total_plays` | 17,358 |
+| `/{video}/video_insights` | `blue_reels_play_count` | 12,707 = views minus replays, so not stored |
 | `/{video}/video_insights` | `fb_reels_replay_count` | 4,651 |
-| `/{video}/video_insights` | `total_video_views` | `{"data": []}` |
-| `/{video}/video_insights` | `post_video_avg_time_watched`, `post_video_view_time`, `post_video_followers`, `post_video_social_actions`, `post_video_retention_graph` | 200 with `{"data": []}` each, alone |
-| `/{video}/video_insights` | `post_impressions_unique` | 400 "must be a valid insights metric" |
-| `/{video}/video_insights` | any group containing one of the above | blank `{"data": []}` or 400 — one metric per call |
-| `/{video}/insights` | anything | 400 "nonexisting field (insights)" |
+| `/{video}/video_insights` | any grouping of the above, or `total_video_views` | `{"data": []}` — one metric per call |
+| `/{page}_{video}/insights` | `post_video_avg_time_watched`, `post_video_view_time`, `post_video_retention_graph`, `post_video_views`, `post_reactions_by_type_total`, `post_clicks` | 400 code 200 subcode 1504029 "User doesn't have enough permissions to load insights" (the token has `read_insights`; these are retired Page-post video metrics, the API answers from v23.0) |
+| `/{page}_{video}/insights` | `post_video_followers`, `post_video_social_actions` | 200, empty data with paging — exist, but not populated for Reels |
+| `/{page}_{video}/insights` | `post_impressions_unique` | 400 "must be a valid insights metric" |
+| `/{page}_{video}` node | `shares,reactions.summary(true),comments.summary(true)` | 400 #10 needs Page Public Content Access |
+| `/{video}/insights` | anything | 400 "nonexisting field" |
 
-Reading: the `post_*` names are Page-post metrics and belong on the Page-post
-object, `/{page_id}_{video_id}/insights`. That variant never ran because the
-probe had no page id. Build ed72224 (live 06:29 UTC) fixes that: the token
-resolver records the owning page id and the probe asks the Page-post edge for
-`post_impressions_unique`, `post_video_avg_time_watched`,
-`post_video_view_time`, `post_video_followers`, `post_video_social_actions`,
-`post_video_retention_graph`, `post_video_views`,
-`post_reactions_by_type_total` and `post_clicks`, each alone and together,
-plus the post node's `shares`, `reactions.summary(true)` and
-`comments.summary(true)`. Needs one more Trigger Run to read.
+So for Reels the obtainable set is **views, likes, comments, replays**. Reach,
+watch time, retention, shares are not available to this app for Reels; Reach
+on Posts stays an Instagram-only number.
 
-Whatever answers becomes one extra call per post in the real sync; the three
-Reels play metrics above already work and will be stored as Plays, Replays
-and Plays Excluding Replays (fields to add on Posts).
+Build 4e29caa (live 17:43 UTC) stores them: `comments.summary(true)` is added
+to the one node call (falls back to the old field list if Meta rejects it),
+and one extra `video_insights` call per post fetches `fb_reels_replay_count`.
+Posts gained **Replays** (`fldOGmgENcHmxfYxc`) and **Comments**
+(`fld4LdxcL0Jy990Lk`); both are written only when Meta returned a number.
+`FB_PROBE` was cleared at 17:42 UTC, so the 18:00 UTC scheduled run is the
+first real run on this build. Verify it on Posts: Facebook rows whose
+`Comments`/`Replays` filled and `Last Modified By` = GF Automations.
+
+Trap found while probing: Meta's paging URLs carry the page access token, and
+the probe printed response bodies to Render logs (06:00–17:21 runs). The
+probe now redacts `access_token=` before printing. Anyone with Render log
+access could have read page tokens from those runs; page tokens are minted
+from the system-user token, and "Revoke tokens" on the system user
+invalidates them when the time comes.
 
 ### `gf-follower-snapshot` — daily follower history (created 2026-09-09 06:15 UTC)
 
@@ -1295,8 +1299,20 @@ Count` from the latest earlier row, idempotent within a day, `SNAPSHOT_DATE` for
 backfills. No platform API calls. Platform labels: Instagram, TikTok, X,
 YouTube, Facebook, Threads.
 
-`AIRTABLE_PERSONAL_ACCESS_TOKEN` pasted by Spencer 2026-09-09 ~06:20 UTC. The
-06:15 deploy was only the initial build; the script has not run yet (first
-scheduled run 09:00 UTC, or Trigger Run). Facebook follower history will read flat
-until the Facebook followers pass actually matches channels (see above). Growth
-chart interface: to build once rows exist.
+First successful run 2026-09-09 17:21 UTC (manual trigger): 34 channels, 74
+rows. The 09:00 UTC scheduled run that day failed with
+`KeyError: 'AIRTABLE_PERSONAL_ACCESS_TOKEN'` — the token was not saved yet.
+Facebook follower history will read flat until the Facebook followers pass
+actually matches channels (see above).
+
+Formulas on Follower Logs were changed so day one is not "Infinity": `Daily
+Change` and `Percent Change` are blank when `Previous Count` is blank.
+
+**Interface:** dashboard page **Follower Growth** (`pagIIR9TGpRTk9idM`) in the
+**Business Tools** interface (`pbdv8aZFxfOCfl5r7`), created 17:45 UTC as a
+draft — not published, because publishing an interface also publishes any
+other unpublished drafts in it. Section 1 tabs by platform with total
+followers and net daily change over time; section 2 has an Account dropdown
+and a date-range dropdown, the same two charts, and a grid of snapshots.
+Edit at `https://airtable.com/appxCYu0Tfwc6h7X7/pagIIR9TGpRTk9idM/edit`,
+then Publish. With one day of data every chart is a single point.
