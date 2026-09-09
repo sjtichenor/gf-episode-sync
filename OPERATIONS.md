@@ -1180,3 +1180,31 @@ prints the raw insights body. `PYTHONUNBUFFERED=1` is set so logs stream.
 Next: unsuspend, `Trigger Run` with `FB_MAX_POSTS=3`, read the raw insights
 body, fix whatever it shows (metric name, video vs post id, or access level),
 then remove the cap and run in full.
+
+### Facebook views: root cause found and fixed — 2026-09-09 02:30 UTC
+
+An `FB_PROBE` run asked Meta about one reel seven ways under the new page
+token. The answer: `/{video}/video_insights` returns **`{"data": []}`** —
+HTTP 200, no error — whenever `post_video_likes_by_reaction_type` is in the
+metric list. Alone, `fb_reels_total_plays` answers correctly (17,357), and the
+video node's `views` field returns the identical number. The reaction metric
+is the poison pill; it is not on Meta's deprecation list and produces no error,
+which is why the contractor's code failed silently for months (the earlier
+"could not determine owner" failure sat in front of it).
+
+`fb/main.py` (commit c10fcef) now reads
+`/{video}?fields=views,likes.summary(true),created_time` — one request per post
+instead of two, halving load on the app's hourly quota — with
+`video_insights?metric=fb_reels_total_plays` as the fallback for plays. Verified
+on a capped run: "Garret Langley TED Flock 4" went from Views 0 / Likes 0 to
+**17,358 / 31** in Airtable at 02:29:24. The full run repairs the rest.
+
+Still open: posts on **two pages** skip with "Could not find valid access
+token" — the rebuilt `FACEBOOK_PAGES` holds 12 pages, the first token's list
+held 13. ThursdAI and Trading Places posts are the ones seen skipping. Assign
+those Pages to the system user in Business Settings, regenerate the page list
+from `/me/accounts`, paste, done. Likes/views on their posts stay untouched
+until then (skipped, not zeroed).
+
+`FB_PROBE` and `FB_MAX_POSTS` are cleared on `gf-facebook`; the code keeps both
+for next time.
