@@ -1353,7 +1353,21 @@ than Airtable interfaces.
   resolved through the Team table's Slack ID field. Preview at
   `/dashboard/api/digest?date=YYYY-MM-DD`; `POST /dashboard/api/digest/send`
   sends now (both need the dashboard cookie).
-- Not yet: per-client share pages (filters by show cover it for now), YouTube
+- **Client dashboards** (`/clients/<show-slug>`, added 2026-09-10): the
+  overview in client mode for one show, sent to the client with a password.
+  `CLIENT_PASSWORDS` env var on gf-api holds `slug=password` pairs separated
+  by `;` (slug = show name lower-cased, non-alphanumerics → `-`, e.g.
+  `trading-places=…`). `client_view()` in `data.py` filters on the server:
+  that show, channels linked to it, posts on those channels or cut from its
+  episodes, their follower history; editor/director/poster/client-account
+  fields are stripped before the response. Page hides nav, editor filter and
+  table, GF-owned toggle, refresh; shows the show's name/logo and "Prepared
+  by Good Future Media". Own cookie per client, signed with the shared secret
+  plus that client's password, so changing one password logs out one client.
+  A show with no `CLIENT_PASSWORDS` entry is a 404. Nicer link later: add
+  `reports.goodfuturemedia.com` as a second custom domain on gf-api (CNAME at
+  WordPress.com, then Render → Settings → Custom Domains).
+- Not yet: YouTube
   retention, anything per-day for views (would need a Posts view log).
 
 ### `gf-follower-snapshot` — daily follower history (created 2026-09-09 06:15 UTC)
