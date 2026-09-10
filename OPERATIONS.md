@@ -1305,6 +1305,13 @@ than Airtable interfaces.
   during which `/dashboard/api/data` answers 503 and the page shows
   "warming up". A refresh failure keeps the last good snapshot and is shown
   by `/dashboard/api/status`.
+- **Deploys and the loading screen**: a new instance starts empty and builds
+  its snapshot (~60–90 s with the parallel pulls; was 200 s serial).
+  `/dashboard/ready` returns 503 until it has one; gf-api's **Health Check
+  Path** must be `/dashboard/ready` so Render keeps the old instance serving
+  meanwhile. The gate lifts after the first failed attempt or five minutes,
+  so a bad Airtable token cannot wedge deploys. Without the health check
+  path every deploy shows "Loading analytics" for a minute or two.
 - **Auth**: `dashboard/auth.py`. One team password, `DASHBOARD_PASSWORD` env
   var on gf-api; a correct login sets a signed HttpOnly cookie for 30 days.
   `DASHBOARD_SECRET` (optional) signs it; without it the key derives from the
