@@ -1389,6 +1389,22 @@ actually matches channels (see above).
 Formulas on Follower Logs were changed so day one is not "Infinity": `Daily
 Change` and `Percent Change` are blank when `Previous Count` is blank.
 
+**Social Blade backfill** (`followers/socialblade_backfill.py`, 2026-09-10):
+Spencer bought 100 Business API credits ($50). `SB_MODE=probe|run` on the
+snapshot service runs the backfill instead of the daily snapshot (remove it
+afterwards). API: `GET https://matrix.sbapis.com/b/{platform}/statistics?query=
+{handle}&history=archive`, headers `clientid`/`token`; response `data.daily[]`
+= one row per day (followers, following, media, avg_likes, avg_comments),
+capped at 1,094 days. Cost: 0 credits for an untracked account (you only get
+today, and tracking starts), 1–3 for one with history. X: every query 404s —
+Social Blade dropped it. Facebook: vanity names only. First run 07:51 UTC:
+55 profiles, 893 rows (thinned), 19 credits, 81 left; history only for
+Trading Places IG (from 2026-07-17), All-In TikTok (2022-12), Solana IG
+(2023-01), Weights & Biases IG (2023-08) and TikTok, Good Politics TikTok,
+Oliver Wyman TikTok, The Techno Optimist IG. `SB_FULL=1` keeps every day;
+`SB_ONLY=name,name` limits accounts. Rows carry Notes = "Social Blade
+backfill".
+
 **Interface:** dashboard page **Follower Growth** (`pagIIR9TGpRTk9idM`) in the
 **Business Tools** interface (`pbdv8aZFxfOCfl5r7`), created 17:45 UTC as a
 draft — not published, because publishing an interface also publishes any
