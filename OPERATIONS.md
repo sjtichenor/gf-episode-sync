@@ -1364,7 +1364,12 @@ than Airtable interfaces.
   table, GF-owned toggle, refresh; shows the show's name/logo and "Prepared
   by Good Future Media". Own cookie per client, signed with the shared secret
   plus that client's password, so changing one password logs out one client.
-  A show with no `CLIENT_PASSWORDS` entry is a 404. Nicer link later: add
+  A show with no `CLIENT_PASSWORDS` entry is a 404. A client can also be a
+  set of accounts instead of a show: `CLIENT_GROUPS` on gf-api, e.g.
+  `ffp=FFP:Steelman|US In Common` (slug = display name : channel names
+  separated by `|`, entries separated by `;`); the view is exactly those
+  channels, their posts and follower history. FFP (Steelman + US In Common)
+  was the first, 2026-09-11. Both variables must carry the slug. Nicer link later: add
   `reports.goodfuturemedia.com` as a second custom domain on gf-api (CNAME at
   WordPress.com, then Render → Settings → Custom Domains).
 - Not yet: YouTube
