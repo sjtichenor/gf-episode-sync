@@ -1372,6 +1372,21 @@ than Airtable interfaces.
   was the first, 2026-09-11. Both variables must carry the slug. Nicer link later: add
   `reports.goodfuturemedia.com` as a second custom domain on gf-api (CNAME at
   WordPress.com, then Render → Settings → Custom Domains).
+- **Audience demographics** (2026-09-11): table `Audience Demographics`
+  (`tblG4ElwziblQZM9E`): one row per account · platform · dimension (Age,
+  Gender, Country, City) · segment · week (Monday). Written by
+  `insta/demographics.py`, which runs inside the gf-facebook service on the
+  first run of each Monday (UTC) or when `DEMOGRAPHICS_FORCE=1` is set on it.
+  Source: Instagram `follower_demographics` (lifetime, total_value, one
+  breakdown per call), which needs ≥100 followers. Accounts are discovered
+  through `FACEBOOK_PAGES` page tokens (`instagram_business_account`), plus
+  the Business's owned/client IG accounts when `META_SYSTEM_USER_TOKEN` and
+  `META_BUSINESS_ID` are set (that path is what reaches Trading Places'
+  Instagram, which has no Page). Matched to Channels by IG handle. The
+  dashboard keeps each account's latest week and shows an Audience card
+  (age, gender, top countries, top cities) on the overview and client
+  pages, hidden when empty. Facebook/TikTok/YouTube demographics: not
+  pulled (Facebook's are country/city only; TikTok has none via API).
 - Not yet: YouTube
   retention, anything per-day for views (would need a Posts view log).
 
