@@ -1289,6 +1289,28 @@ access could have read page tokens from those runs; page tokens are minted
 from the system-user token, and "Revoke tokens" on the system user
 invalidates them when the time comes.
 
+### Instagram cutover and the cross-post double count — 2026-09-14/15
+
+Instagram's `views` for a reel shared to Facebook includes the Facebook
+plays (the app shows the split; the API does not). With the Facebook post
+logged as its own record, a video's total counted those plays twice:
+"Anatoly: Alpenglow is coming" showed 87k in Airtable against 47k real.
+Fixed in our `insta/insta_sync.py`: per Video, the sibling Facebook post's
+current views are read live with the same page token and subtracted; the
+raw figure goes to Posts `Views incl. Facebook` (`fldbCL4AC0Q3gCs6Q`), the
+Instagram-only figure to `Views`. Assumption: an Instagram + Facebook pair
+on one Video is a cross-post (the team's workflow). A Facebook video
+uploaded separately would be under-counted on the Instagram side.
+
+New cron **gf-instagram** (`crn-daka3ibm8hqs73drhcf0`, our repo,
+`0 5 * * *`, `python insta/sync_insta.py`, starter) replaces Farhan's
+`Instagram service (posts+followers)` (`crn-d2skb295pdvs739idln0`). The
+script discovers Pages via `/me/accounts` on `META_USER_ACCESS_TOKEN`, so
+that variable takes the Business system-user token; plus
+`AIRTABLE_PERSONAL_ACCESS_TOKEN`. Non-secret vars set at creation. After the
+first clean run, suspend Farhan's Instagram cron. Runs re-sync posts within
+`INSTAGRAM_LOOKBACK_DAYS` (90), so the correction back-fills recent reels.
+
 ### Analytics dashboard — `api.goodfuturemedia.com/dashboard` (added 2026-09-09)
 
 Lives in the gf-api service (`srv-dag7ohtbedkc73fq9elg`), code under
