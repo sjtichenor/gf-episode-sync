@@ -1289,6 +1289,20 @@ access could have read page tokens from those runs; page tokens are minted
 from the system-user token, and "Revoke tokens" on the system user
 invalidates them when the time comes.
 
+### TikTok cutover result — 2026-09-16 20:27 UTC
+
+First production sign-in (good.conspiracies) worked end to end: token
+refreshed, 30 posts updated in batches, followers 3,783 written. Followers
+call had to be a GET (`/v2/user/info/`), fixed in e075fb5. The one-off
+`TIKTOK_LOOKBACK_DAYS=-1` pass was set back to 120. Remaining accounts to
+sign in (posts on file): good.politics 775, technooptimist 735,
+tradingplacespod 291, bg2.clips 219, solanafndn 171, altryne 162,
+steel.man.debates 133, free.business.school 96, startup__academy 78,
+usincommon 69, solana 68, theallinpod 61, goodbillionaires 44,
+solana.clipped 43, weights_biases 24, plus a handful of tiny ones. Farhan's
+Instagram cron suspended 2026-09-16; his TikTok crons to suspend once the
+big accounts are signed in.
+
 ### TikTok approved — production cutover — 2026-09-16
 
 TikTok approved "Good Future Media Analytics" (Login Kit + Display API).
@@ -1338,8 +1352,7 @@ New cron **gf-instagram** (`crn-daka3ibm8hqs73drhcf0`, our repo,
 script discovers Pages via `/me/accounts` on `META_USER_ACCESS_TOKEN`, so
 that variable takes the Business system-user token; plus
 `AIRTABLE_PERSONAL_ACCESS_TOKEN`. Non-secret vars set at creation. After the
-first clean run, suspend Farhan's Instagram cron. Runs re-sync posts within
-`INSTAGRAM_LOOKBACK_DAYS` (90), so the correction back-fills recent reels.
+first clean run, suspend Farhan's Instagram cron. Runs re-sync posts within `INSTAGRAM_LOOKBACK_DAYS` (now 120).
 
 ### Analytics dashboard — `api.goodfuturemedia.com/dashboard` (added 2026-09-09)
 
@@ -1364,6 +1377,10 @@ than Airtable interfaces.
   meanwhile. The gate lifts after the first failed attempt or five minutes,
   so a bad Airtable token cannot wedge deploys. Without the health check
   path every deploy shows "Loading analytics" for a minute or two.
+- **Drill-down** (2026-09-16): KPI tiles, chart bars/slices and account
+  rows open a drawer listing the posts behind the number (`openDrill` in
+  `index.html`; Chart.js `onClick` via the `clickable()` helper). Client
+  pages hide the "dated by log entry" and median subtitles.
 - **Auth**: `dashboard/auth.py`. One team password, `DASHBOARD_PASSWORD` env
   var on gf-api; a correct login sets a signed HttpOnly cookie for 30 days.
   `DASHBOARD_SECRET` (optional) signs it; without it the key derives from the
