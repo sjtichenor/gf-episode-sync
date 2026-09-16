@@ -1289,6 +1289,28 @@ access could have read page tokens from those runs; page tokens are minted
 from the system-user token, and "Revoke tokens" on the system user
 invalidates them when the time comes.
 
+### TikTok approved — production cutover — 2026-09-16
+
+TikTok approved "Good Future Media Analytics" (Login Kit + Display API).
+Cutover: (1) on gf-api replace `TIKTOK_CLIENT_KEY`/`TIKTOK_CLIENT_SECRET`
+with the **Production** tab's keys and set `TIKTOK_ENVIRONMENT=Production`;
+(2) each TikTok account signs in once at
+`https://api.goodfuturemedia.com/tiktok/login?key=<AUTH_LINK_SECRET>` while
+logged into that TikTok account (rows land in TikTok Auth with Environment
+= Production; link each row's Channel field to its Channels record so
+followers write to the right place, otherwise it falls back to matching the
+handle in `TikTok Profile`); (3) new cron **gf-tiktok**
+(`crn-dalfed5g1s2s73e4fq1g`, our repo, `0 */6 * * *`, `python
+tiktok/sync_tiktok.py`) needs `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`
+(production), `TOKEN_ENCRYPTION_KEY` (same value as gf-api) and the Airtable
+PAT pasted; non-secret vars set at creation; (4) after a clean run, suspend
+Farhan's `Tiktok service (posts)` (`crn-d33gjvripnbc73e07pe0`) and `Tiktok
+service (followers)` (`crn-d33gplfdiees739iil10`). The sync batches 20
+videos per `/v2/video/query/` call, re-syncs posts within
+`TIKTOK_LOOKBACK_DAYS` (120) plus any without Views, writes Views/Likes/
+Comments and Date Posted (if empty), refreshes and re-encrypts tokens each
+run. Accounts not signed in are listed in the log with their post counts.
+
 ### Instagram cutover and the cross-post double count — 2026-09-14/15
 
 Instagram's `views` for a reel shared to Facebook includes the Facebook
