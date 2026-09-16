@@ -1494,6 +1494,22 @@ Oliver Wyman TikTok, The Techno Optimist IG. `SB_FULL=1` keeps every day;
 `SB_ONLY=name,name` limits accounts. Rows carry Notes = "Social Blade
 backfill".
 
+**Trading Places Instagram, before Social Blade (2026-09-16):** Social Blade
+only had this account from 2026-07-17. Spencer exported "Follows" from Meta
+Business Suite (`tpp Follows on IG.csv`, UTF-16, one row per day
+2025-10-10 → 2026-09-15, 11,761 follows total) and the summary showed 957
+unfollows over the same span, with no daily unfollow series. The 280 rows
+2025-10-10 → 2026-07-16 in Follower Logs are reconstructed: cumulative follows
+minus unfollows spread pro rata (8.14% of each day's follows), anchored so the
+series meets Social Blade's 9,646 on 2026-07-17 (it lands on 9,624 the day
+before). Daily shape is right; individual days are approximate. Notes on those
+rows = "Meta Insights backfill (follows export; unfollows pro rata)". Written
+through the Airtable MCP with field ids (names are rejected on create), 50 per
+call; a CSV copy of the same rows is in
+`~/Desktop/temp/trading-places-instagram-follower-backfill.csv`. The dashboard
+reads the whole Follower Logs table, so the client page picks it up on the next
+15-minute refresh.
+
 **Interface:** dashboard page **Follower Growth** (`pagIIR9TGpRTk9idM`) in the
 **Business Tools** interface (`pbdv8aZFxfOCfl5r7`), created 17:45 UTC as a
 draft — not published, because publishing an interface also publishes any
