@@ -1317,12 +1317,20 @@ Instagram's `views` for a reel shared to Facebook includes the Facebook
 plays (the app shows the split; the API does not). With the Facebook post
 logged as its own record, a video's total counted those plays twice:
 "Anatoly: Alpenglow is coming" showed 87k in Airtable against 47k real.
-Fixed in our `insta/insta_sync.py`: per Video, the sibling Facebook post's
-current views are read live with the same page token and subtracted; the
-raw figure goes to Posts `Views incl. Facebook` (`fldbCL4AC0Q3gCs6Q`), the
-Instagram-only figure to `Views`. Assumption: an Instagram + Facebook pair
-on one Video is a cross-post (the team's workflow). A Facebook video
-uploaded separately would be under-counted on the Instagram side.
+**Correction 2026-09-16:** the subtraction I first shipped was wrong. The
+`views` media insight our copy of the sync requests is Instagram-only (a
+cross-posted reel came back 5,194 here vs 116,580 on Facebook; Alpenglow
+came back 6,605, matching the app). The combined figures were written by
+Farhan's *main*-branch sync, which our copy (from his `whook` branch) does
+not share. So the real fix is simply running our sync and suspending his.
+The 2026-09-16 05:00 run had reduced/zeroed ~2,000 posts; each carried the
+raw value in `Views incl. Facebook` (`fldbCL4AC0Q3gCs6Q`), and `IG_REPAIR=1`
+on gf-instagram restores Views from it and clears it (run once, remove
+the variable; the field can then be deleted). Also: the 2026-09-16 full
+pass (`INSTAGRAM_LOOKBACK_DAYS=-1`) timed out at Render's 12-hour cron
+limit around post 2,000 of 2,940 — posts without a username in the URL
+cost ~30 s each in "searching across all accounts". Lookback is back to
+120 days.
 
 New cron **gf-instagram** (`crn-daka3ibm8hqs73drhcf0`, our repo,
 `0 5 * * *`, `python insta/sync_insta.py`, starter) replaces Farhan's
