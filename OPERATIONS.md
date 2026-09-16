@@ -1510,6 +1510,32 @@ call; a CSV copy of the same rows is in
 reads the whole Follower Logs table, so the client page picks it up on the next
 15-minute refresh.
 
+**Account Insights** (`tbl5tBiqrbwN3WgzT`, 2026-09-16): one row per account
+per day with account-level Reach and Views — the numbers Business Suite shows
+under Insights. Fields: Key ("<Channel> · Instagram · <date>"), Social Media
+Account (link), Platform, Date, Reach, Views, Source. Trading Places
+2025-10-11 → 2026-09-15 (340 rows) came from two Business Suite exports
+(`TPP IG impressions.csv`, which is actually Reach, and `TPP IG Views .csv`;
+UTF-16, `sep=,` header line, zero rows before the account existed dropped).
+Going forward `insta/account_insights.py` runs at the end of every
+gf-facebook run: `reach` as a `period=day` time series (30-day windows,
+end_time minus 12 h = the day), `views` one `metric_type=total_value` call
+per day, last `INSIGHTS_LOOKBACK_DAYS` (7) days, upsert by Key, Source
+"Instagram Graph API". `INSIGHTS_DISABLE=1` skips it; set the lookback to
+90 once to backfill an account Social Blade/Meta never covered. Accounts
+match Channels by IG handle, same as demographics. Not verified against the
+live API yet — check the next gf-facebook run's log for the
+"📡 Instagram account insights" block.
+
+**Dashboard KPIs (2026-09-16):** Comments tile removed everywhere (the number
+was 0 for most posts and read as broken); Videos (created in range) sits next
+to Posts; Reach = sum of post-level Instagram reach in range (Posts.Reach,
+which our Instagram sync writes from media insights) and only shows when some
+post has it; "Avg views / post" and the Comments column are hidden on client
+pages. New "Accounts reached" card charts the Account Insights rows by week
+(daily reach added up, plus daily views as a line) — that is a different
+number from the Reach tile, and the subtitle says so.
+
 **Interface:** dashboard page **Follower Growth** (`pagIIR9TGpRTk9idM`) in the
 **Business Tools** interface (`pbdv8aZFxfOCfl5r7`), created 17:45 UTC as a
 draft — not published, because publishing an interface also publishes any
