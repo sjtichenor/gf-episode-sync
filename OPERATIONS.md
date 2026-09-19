@@ -1478,6 +1478,15 @@ actually matches channels (see above).
 Formulas on Follower Logs were changed so day one is not "Infinity": `Daily
 Change` and `Percent Change` are blank when `Previous Count` is blank.
 
+**Episode sync v2 exits 1 when any one feed fails** (seen 2026-09-19 09:02
+UTC, one Render alert email): `This Past Weekend w/ Theo Von` returned
+`ConnectionResetError(104, 'Connection reset by peer')` from
+feeds.megaphone.fm. Every other run that day succeeded, and the 10:02 run
+read the feed fine with nothing new, so no episode was missed. The job runs
+hourly and is idempotent, so a transient blip on any of the feeds costs
+nothing but still sends an alert. If these emails get noisy, the fix is to
+exit non-zero only when a feed fails several runs in a row rather than once.
+
 **Social Blade backfill** (`followers/socialblade_backfill.py`, 2026-09-10):
 Spencer bought 100 Business API credits ($50). `SB_MODE=probe|run` on the
 snapshot service runs the backfill instead of the daily snapshot (remove it
@@ -1527,14 +1536,36 @@ match Channels by IG handle, same as demographics. Not verified against the
 live API yet — check the next gf-facebook run's log for the
 "📡 Instagram account insights" block.
 
-**Dashboard KPIs (2026-09-16):** Comments tile removed everywhere (the number
-was 0 for most posts and read as broken); Videos (created in range) sits next
-to Posts; Reach = sum of post-level Instagram reach in range (Posts.Reach,
-which our Instagram sync writes from media insights) and only shows when some
-post has it; "Avg views / post" and the Comments column are hidden on client
-pages. New "Accounts reached" card charts the Account Insights rows by week
-(daily reach added up, plus daily views as a line) — that is a different
-number from the Reach tile, and the subtitle says so.
+**Dashboard KPIs (2026-09-16, reach reversed 2026-09-19):** Comments tile
+removed everywhere (the number was 0 for most posts and read as broken);
+Videos (created in range) sits next to Posts; "Avg views / post" and the
+Comments column are hidden on client pages.
+
+Reach was added on 2026-09-16 and taken back out on 2026-09-19. **Only
+Instagram writes reach.** Meta refuses the Facebook post metrics
+(`post_impressions_unique` errors on permissions, same wall as the Reels
+probe); TikTok's Display API exposes no reach field at all, only views,
+likes, comments and shares; YouTube's unique-viewers needs OAuth, which is
+off the table; X and LinkedIn have none. On Trading Places that is 288 of
+1,577 posts, so a Reach tile sitting beside an all-platform Views number
+reads either as broken or as total unique people. The KPI tile, the Reach
+table column and the "Accounts reached" chart are gone, along with the
+Account Insights pull in `dashboard/data.py`.
+
+Nothing was deleted on the data side: the Account Insights table, its
+imported history and `insta/account_insights.py` all stay, so reach keeps
+accruing daily and the display can be restored from commit 0825599 if
+Facebook page-level reach ever works. **Untested idea:** page-level daily
+reach may be reachable even though post-level is not, since page insights
+are a different permission and we already hold the page tokens. Worth a
+probe before promising a client anything.
+
+**account_insights.py verified live 2026-09-19** on the 18:54 UTC gf-facebook
+run: 7 Instagram accounts (Steelman, US In Common, Startup Academy, BG2, The
+Techno Optimist, Solana, Trading Places), "0 rows added, 49 refreshed" —
+the upsert-by-Key works and reruns do not duplicate. Reach returns one fewer
+day than views (6 vs 7) because the day-series metric drops the boundary
+bucket; that is expected, not a fault.
 
 **Interface:** dashboard page **Follower Growth** (`pagIIR9TGpRTk9idM`) in the
 **Business Tools** interface (`pbdv8aZFxfOCfl5r7`), created 17:45 UTC as a
