@@ -1568,6 +1568,27 @@ match Channels by IG handle, same as demographics. Not verified against the
 live API yet — check the next gf-facebook run's log for the
 "📡 Instagram account insights" block.
 
+**Stacked-chart drill-downs and Chart.js interaction modes** (fixed
+2026-09-21, commit cbaea83). "Views by week posted" sets
+`interaction: {mode: 'index', intersect: false}` so its tooltip can list
+every platform for a week. The side effect is that `onClick` is handed
+*every* element at that x in dataset order, so the shared `clickable()`
+helper taking `els[0]` always drilled into the first series — clicking the
+TikTok band opened the Instagram posts. `clickable()` now re-resolves the
+element under the cursor with
+`getElementsAtEventForMode(e, 'nearest', {intersect: true})` and passes a
+`precise` flag: a hit on a segment drills into that platform, a loose click
+in the column opens the whole week. Clicking a zero-height segment opens
+nothing, which is correct.
+
+Only this chart read `datasetIndex`; the donut, posting volume and shows
+charts use `el.index` alone and were unaffected, though the donut resolves
+through the same new path (verified: arc midpoints, not `arc.x/arc.y`, which
+is the doughnut's centre hole). **When testing chart clicks from the
+console**, call `chart.options.onClick(evt, els, chart)` with a synthetic
+event carrying `x`/`y` and `native.offsetX/offsetY`; a plain
+`dispatchEvent(new MouseEvent(...))` does not reach Chart.js.
+
 **Dashboard KPIs (2026-09-16, reach reversed 2026-09-19):** Comments tile
 removed everywhere (the number was 0 for most posts and read as broken);
 Videos (created in range) sits next to Posts; "Avg views / post" and the
