@@ -1454,7 +1454,15 @@ than Airtable interfaces.
   Instagram, which has no Page). Matched to Channels by IG handle. The
   dashboard keeps each account's latest week and shows an Audience card
   (age, gender, top countries, top cities) on the overview and client
-  pages, hidden when empty. Facebook/TikTok/YouTube demographics: not
+  pages, hidden when empty. **The gender chart is men vs women only**
+  (2026-09-21): Instagram's `U` bucket, stored as segment "Unknown", is
+  filtered out of that one chart so the doughnut reads as a ratio, and the
+  percentages recompute over the two. It is typically 10-25% and is mostly
+  business, brand and creator accounts rather than people who declined. It
+  is still written to Airtable, and the count plus its share of all
+  followers is in the info bubble beside the heading. The city-share
+  denominator deliberately still uses the full gender total, so city
+  percentages remain shares of all followers. Facebook/TikTok/YouTube demographics: not
   pulled (Facebook's are country/city only; TikTok has none via API).
 - Not yet: YouTube
   retention, anything per-day for views (would need a Posts view log).
