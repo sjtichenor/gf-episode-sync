@@ -1513,11 +1513,11 @@ Python, so the hook is skipped and `main()` runs, and a single-key merge
 avoids pulling any other env var into context. Do not set it to "off" —
 that is a non-empty string and would still trigger the backfill.
 
-**The footgun is still there.** Nothing alerts when the snapshot is replaced,
-and the flag reads like a harmless mode switch. If SB_MODE is ever used
-again, clear it the same day. The durable fix is to run the backfill *after*
-the snapshot rather than instead of it, so the daily rows are written either
-way.
+**Footgun closed the same day** (commit 620f150): the snapshot now always
+runs, and a backfill, when SB_MODE is set, runs *after* it rather than in
+place of it. A flag left on now costs Social Blade credits and log noise
+instead of eleven days of data. Clearing SB_MODE when a backfill is done is
+still the right habit, but forgetting no longer loses rows.
 
 **Social Blade backfill** (`followers/socialblade_backfill.py`, 2026-09-10):
 Spencer bought 100 Business API credits ($50). `SB_MODE=probe|run` on the
