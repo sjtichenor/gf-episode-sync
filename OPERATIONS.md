@@ -1576,6 +1576,20 @@ match Channels by IG handle, same as demographics. Not verified against the
 live API yet — check the next gf-facebook run's log for the
 "📡 Instagram account insights" block.
 
+**Videos has two rollups of post Views, and they mean different things**
+(learned 2026-09-21). `fldBTytz2Zd8oUOKl` is the **SUM** across every post
+that video became — the video's total views, and what the dashboard's video
+drill-down shows. `fld8E161mTjNpn5iF` is the **MAX**, the best single post,
+and it feeds the views-bonus formula (`fld5MbBSMRKuLhDaM`: $2 at 10k, $10 at
+50k, up to $100 at 1M). Picking the wrong one silently understates a video.
+Verified against the posts on three records, e.g. "How Flock Safety Was
+Born": posts 38 + 6,090 + 1,087 + 1,123 = 8,338 = the SUM field, while the
+MAX field reads 6,090. `fld3JS6ACIpCHGlYf` counts the posts.
+
+These are lifetime totals for the video, whenever its posts went out, so the
+drill-down total deliberately does not reconcile with the Views tile for the
+selected date range. The drawer subtitle says as much.
+
 **Three ways to define a client dashboard** (`dashboard/data.py`,
 `client_view`). All three strip editor, director, poster and client
 attribution before anything leaves the server.
