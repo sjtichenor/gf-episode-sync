@@ -1576,6 +1576,37 @@ match Channels by IG handle, same as demographics. Not verified against the
 live API yet — check the next gf-facebook run's log for the
 "📡 Instagram account insights" block.
 
+**Three ways to define a client dashboard** (`dashboard/data.py`,
+`client_view`). All three strip editor, director, poster and client
+attribution before anything leaves the server.
+
+1. **By show** — slug is the slugified show name. Gets that show, the
+   channels linked to it, and posts on those channels or cut from its
+   episodes.
+2. **By accounts** — `CLIENT_GROUPS="ffp=FFP:Steelman|US In Common"`.
+   Exactly those channels and their posts.
+3. **By title word** — `CLIENT_MATCHES="flock=Flock:flock"` (added
+   2026-09-21, for work where the Client field on Videos was never filled
+   in). Every clip whose **title** carries that word, case-insensitive,
+   wherever it ran. The post's own hook text is deliberately not searched,
+   or anything using the word in passing would be swept in.
+
+**A title-matched client gets post performance only, by design.** Flock's
+88 posts all ran on The Techno Optimist, which has 2,704 posts in total, so
+that account's followers and audience are not Flock's. `client_view` returns
+no channels, no follower rows and no demographics for these, and nulls each
+post's channel so a shared account is not disclosed to the client. The page
+adapts: no Followers tile, no follower or accounts cards, a footer without
+the counts it cannot report, and the "Views by account" card hidden because
+with no accounts it collapses into a copy of the platform donut.
+
+**Adding one needs two env vars on gf-api**, and the page 404s until both
+are set: `CLIENT_MATCHES` (the selector, safe for me to set) and an entry in
+`CLIENT_PASSWORDS` (`flock=<password>`, which Spencer sets himself — I never
+handle credentials). The local fake-data preview in
+`gf-episode-sync/.claude/launch.json` carries a `flock=Flock:clip 1` fixture
+so this code path can be exercised without real data.
+
 **Stacked-chart drill-downs and Chart.js interaction modes** (fixed
 2026-09-21, commit cbaea83). "Views by week posted" sets
 `interaction: {mode: 'index', intersect: false}` so its tooltip can list
