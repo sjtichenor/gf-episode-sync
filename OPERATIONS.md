@@ -1487,6 +1487,38 @@ hourly and is idempotent, so a transient blip on any of the feeds costs
 nothing but still sends an alert. If these emails get noisy, the fix is to
 exit non-zero only when a feed fails several runs in a row rather than once.
 
+**SB_MODE left on for 11 days silently stopped the daily snapshot**
+(2026-09-10 → 2026-09-21, found 2026-09-21 when Spencer noticed flat YouTube
+and X lines for Trading Places). `snapshot_followers.py` ends with
+
+    if __name__ == "__main__" and os.environ.get("SB_MODE"):
+        socialblade_backfill.main(); sys.exit(0)
+
+so the backfill runs **instead of** the snapshot, not alongside it. Social
+Blade covers only Instagram, TikTok and Facebook, so for 11 days every
+channel got zero YouTube, X and Threads rows: 15 YouTube rows and 12 X rows
+existed in the whole table, all stamped 2026-09-09, the day of the seeding
+run. Instagram and TikTok looked healthy throughout, which is why nothing
+looked wrong until someone read a chart.
+
+The counts themselves were never lost — Channels held current values the
+whole time (Trading Places YouTube 116 → 123, X 2,227 → 2,226). Only the
+per-day history is gone, and for X it is unrecoverable since Social Blade
+does not carry X. YouTube history could be pulled back by adding `youtube`
+to `SB_PLATFORMS`, which is not in the default list.
+
+**Fix applied 2026-09-21 07:14 UTC:** `SB_MODE` set to the empty string on
+gf-follower-snapshot (deploy `dep-daodif0ae00c73c3q900`). Empty is falsy in
+Python, so the hook is skipped and `main()` runs, and a single-key merge
+avoids pulling any other env var into context. Do not set it to "off" —
+that is a non-empty string and would still trigger the backfill.
+
+**The footgun is still there.** Nothing alerts when the snapshot is replaced,
+and the flag reads like a harmless mode switch. If SB_MODE is ever used
+again, clear it the same day. The durable fix is to run the backfill *after*
+the snapshot rather than instead of it, so the daily rows are written either
+way.
+
 **Social Blade backfill** (`followers/socialblade_backfill.py`, 2026-09-10):
 Spencer bought 100 Business API credits ($50). `SB_MODE=probe|run` on the
 snapshot service runs the backfill instead of the daily snapshot (remove it
