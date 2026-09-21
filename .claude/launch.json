@@ -1,0 +1,14 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "gf-api-dashboard-fake",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/spencertichenor/Projects/gf-airtable-automation && DASHBOARD_FAKE_DATA=1 DASHBOARD_PASSWORD=preview CLIENT_PASSWORDS='all-in=preview;flock=preview' CLIENT_MATCHES='flock=Flock:clip 1' CLIENT_NO_FOLLOWERS='all-in' .venv/bin/python -m uvicorn tiktok_auth:app --host 127.0.0.1 --port 8765"
+      ],
+      "port": 8765
+    }
+  ]
+}

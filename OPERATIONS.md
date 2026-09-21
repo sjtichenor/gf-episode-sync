@@ -1621,6 +1621,18 @@ handle credentials). The local fake-data preview in
 `gf-episode-sync/.claude/launch.json` carries a `flock=Flock:clip 1` fixture
 so this code path can be exercised without real data.
 
+**Followers can be dropped from any client page** — `CLIENT_NO_FOLLOWERS`
+on gf-api, a list of slugs separated by `;` or `,` (added 2026-09-21,
+commit c4426a2; currently `solana`). Solana's accounts are posted to by
+many people besides us, so the follower count there is not something the
+client paid for and reads as a claim we did not make; the work they are
+buying is views on our clips. The flag empties the follower rows only, so
+the page falls back to exactly the shape a title-matched client gets —
+Followers tile, followers-over-time, net-change and accounts cards all
+hide themselves — while channels, posts, videos and the account filter
+stay as they were. `.claude/launch.json` carries an `all-in` fixture for
+this path.
+
 **Stacked-chart drill-downs and Chart.js interaction modes** (fixed
 2026-09-21, commit cbaea83). "Views by week posted" sets
 `interaction: {mode: 'index', intersect: false}` so its tooltip can list
