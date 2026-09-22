@@ -1483,6 +1483,21 @@ than Airtable interfaces.
   was the first, 2026-09-11. Both variables must carry the slug. Nicer link later: add
   `reports.goodfuturemedia.com` as a second custom domain on gf-api (CNAME at
   WordPress.com, then Render → Settings → Custom Domains).
+- **Dashboard index** (`/dashboard/links`, `dashboard/links.html`, added
+  2026-09-22, commit d6126d6): one page listing every dashboard we run, behind
+  the team password, linked from the nav on the overview and team pages. The
+  client rows are **generated from the live configuration** in
+  `routes.py:_client_rows()` — `CLIENT_PASSWORDS` for which reports exist,
+  `CLIENT_GROUPS` / `CLIENT_MATCHES` for how each one's clips are chosen (and
+  the channel names behind a group, read back from the snapshot), plus
+  `CLIENT_NO_FOLLOWERS`, `CLIENT_NO_SHOWS` and `CLIENT_VIDEO_ACCOUNTS` as
+  caveats on the row. Nothing is hand-listed, so adding a client shows up on
+  the next deploy. The page shares the `gf-theme` localStorage key with the
+  other two, so the light/dark choice carries across. As of 2026-09-22 the
+  live set is four client reports — trading-places, ffp, solana, flock — which
+  was confirmed by probing `/clients/<slug>` across every show and client
+  account name (303 = exists, 404 = no `CLIENT_PASSWORDS` entry).
+
 - **Audience demographics** (2026-09-11): table `Audience Demographics`
   (`tblG4ElwziblQZM9E`): one row per account · platform · dimension (Age,
   Gender, Country, City) · segment · week (Monday). Written by
