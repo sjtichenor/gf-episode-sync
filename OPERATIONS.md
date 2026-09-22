@@ -1511,9 +1511,20 @@ than Airtable interfaces.
   caveats on the row. Nothing is hand-listed, so adding a client shows up on
   the next deploy. The page shares the `gf-theme` localStorage key with the
   other two, so the light/dark choice carries across. As of 2026-09-22 the
-  live set is four client reports — trading-places, ffp, solana, flock — which
+  live set was four client reports — trading-places, ffp, solana, flock — which
   was confirmed by probing `/clients/<slug>` across every show and client
   account name (303 = exists, 404 = no `CLIENT_PASSWORDS` entry).
+
+- **BG2 client page** (`/clients/bg2`, added 2026-09-22): a CLIENT_GROUPS
+  entry, `bg2=BG2:BG2` — the single "BG2" channel (@bg2clips on Instagram,
+  TikTok, YouTube, Facebook and X), which links to the show "BG2Pod with Brad
+  Gerstner and Bill Gurley" (315 videos). Defined by account rather than by
+  show so the URL is `/clients/bg2` and not a slug of the show's full title.
+  Logo comes from the channel's profile picture; there is no "BG2" record in
+  Clients (the nearest is "Brad Gerstner"), so add one with a Logo attachment
+  if a different mark is wanted. `CLIENT_GROUPS` on gf-api is now
+  `ffp=FFP:Steelman|US In Common;solana=Solana:Solana|Solana Clipped;bg2=BG2:BG2`.
+  The page 404s until Spencer adds `bg2=<password>` to `CLIENT_PASSWORDS`.
 
 - **Audience demographics** (2026-09-11): table `Audience Demographics`
   (`tblG4ElwziblQZM9E`): one row per account · platform · dimension (Age,
