@@ -1229,6 +1229,10 @@ Separate finding from the same log: the Page tokens for **Good Billionaires
 and Good Crypto are dead** ("This Page access token belongs to a Page that is
 not accessible", code 190) — regenerating `FACEBOOK_PAGES` from `/me/accounts`
 would fix both, and is Spencer's paste. The cron is `0 */6 * * *`.
+**Verified on the 22:16 UTC run:** 9 channels matched where 6 had before —
+US In Common 1,455 → **9,834**, Solana 500 → **891**, BG2 1,427 → **1,587**
+(BG2 matched through the Page-id fallback: its Page is "BG2 Clips"). The two
+"Could not fetch follower count" lines are the dead tokens above.
 
 **Settled 2026-09-21 (commit f28bb6b): the Business's Instagram edges do not
 work, its Pages edge does.** With a system-user token for GF Automations and
