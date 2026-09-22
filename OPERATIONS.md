@@ -1213,6 +1213,23 @@ discovery path via the Business's Instagram accounts
 (`/{business-id}/instagram_accounts`, plus owned ones) before it can be trusted
 for that account.
 
+**Facebook follower counts silently skip any channel whose name is not
+typed exactly like its Page** (found 2026-09-22 when someone reported US In
+Common not updating; fixed in commit 88694ab). `sync_facebook_followers` in
+`fb/main.py` paired a Channels row with its `FACEBOOK_PAGES` entry by exact
+string match on the name. Airtable says "US In Common", the Page says "US in
+Common", so the account was left out of every run: the **Facebook Followers**
+field sat at **1,455** while Social Blade had it at 9,380, and Instagram and
+TikTok on the same row kept updating, which made it look like nothing was
+wrong. Only 6 of the 12 pages in `FACEBOOK_PAGES` were matching at all. The
+match now strips case and punctuation, and falls back to the Page id when the
+channel's Facebook Profile URL carries one (Solana's does:
+`facebook.com/139904812549092`, and its count had been stuck at 500).
+Separate finding from the same log: the Page tokens for **Good Billionaires
+and Good Crypto are dead** ("This Page access token belongs to a Page that is
+not accessible", code 190) — regenerating `FACEBOOK_PAGES` from `/me/accounts`
+would fix both, and is Spencer's paste. The cron is `0 */6 * * *`.
+
 **Settled 2026-09-21 (commit f28bb6b): the Business's Instagram edges do not
 work, its Pages edge does.** With a system-user token for GF Automations and
 `META_BUSINESS_ID=1651224375632743`, every Instagram edge on the Business node
