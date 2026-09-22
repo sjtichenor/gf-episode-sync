@@ -1674,6 +1674,26 @@ hide themselves — while channels, posts, videos and the account filter
 stay as they were. `.claude/launch.json` carries an `all-in` fixture for
 this path.
 
+**A client page can also drop show attribution** — `CLIENT_NO_SHOWS` on
+gf-api, same `;`/`,` list of slugs (added 2026-09-21, commit 6d880de;
+currently `solana`). The Videos **Show** field is a formula:
+`IF({episode's show}, {episode's show}, {channel's show})`. All 325 of
+Solana's videos take the second branch — not one of them has an episode —
+so clips cut from conference talks, interviews and other people's podcasts
+all come out labelled **"Solana Ecosystem Calls"**, the single show hanging
+off the Solana account. Nobody set that; the formula fell through to it.
+The flag clears the show from every video and post *after* the videos have
+been selected by show name (selection has to happen first or the list comes
+back empty), empties the shows list so the Views-by-show card hides, and the
+drawer's Show column now renders only when a row actually carries one. The
+alternative fix is in Airtable rather than code: rename that Show record to
+something true of all of it, or link the videos to real episodes.
+
+**The video Type column is gone from client pages** (same commit). Every
+clip is a Vertical Clip, so the column told a client nothing. It stays on
+the team page, where Horizontal Clip / Full Episode / Promo / Repackaged /
+Reposted are real distinctions.
+
 **Stacked-chart drill-downs and Chart.js interaction modes** (fixed
 2026-09-21, commit cbaea83). "Views by week posted" sets
 `interaction: {mode: 'index', intersect: false}` so its tooltip can list
