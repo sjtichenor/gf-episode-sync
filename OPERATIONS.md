@@ -894,8 +894,9 @@ The 5 still empty, all needing a human:
 - Two Trading Places YouTube links resolve to nothing — `EkfIrBVHx9A` (#1 David
   Zhou) and `A5OECZTpEqI` (#7 Turner Novak) return no thumbnail and no title.
 - Five shows will never sync: Squawk Box (CNBC publishes no feed for the
-  broadcast), Monitoring the Situation (X only), Genfinity, Solana Ecosystem
-  Calls, The First (client that never launched).
+  broadcast), Monitoring the Situation (X only), Genfinity, Solana (called
+  Solana Ecosystem Calls until 2026-09-21), The First (client that never
+  launched).
 - **10X Capital Podcast was renamed "How I Invest with David Weisburd."** Its
   feed was not dead, just abandoned. Switched on 2026-09-05: the Shows record is
   renamed and now points at
@@ -1674,20 +1675,47 @@ hide themselves — while channels, posts, videos and the account filter
 stay as they were. `.claude/launch.json` carries an `all-in` fixture for
 this path.
 
-**A client page can also drop show attribution** — `CLIENT_NO_SHOWS` on
-gf-api, same `;`/`,` list of slugs (added 2026-09-21, commit 6d880de;
-currently `solana`). The Videos **Show** field is a formula:
-`IF({episode's show}, {episode's show}, {channel's show})`. All 325 of
-Solana's videos take the second branch — not one of them has an episode —
-so clips cut from conference talks, interviews and other people's podcasts
-all come out labelled **"Solana Ecosystem Calls"**, the single show hanging
-off the Solana account. Nobody set that; the formula fell through to it.
-The flag clears the show from every video and post *after* the videos have
-been selected by show name (selection has to happen first or the list comes
-back empty), empties the shows list so the Views-by-show card hides, and the
-drawer's Show column now renders only when a row actually carries one. The
-alternative fix is in Airtable rather than code: rename that Show record to
-something true of all of it, or link the videos to real episodes.
+**The Videos `Show` field is a formula and a bad selector.** It is
+`IF({episode's show}, {episode's show}, {channel's show})`, and it misleads
+in three separate ways, all of which bit the Solana page on 2026-09-21:
+
+1. **It lies about provenance.** Not one of Solana's videos has an episode,
+   so every one falls through to the channel and comes out labelled with the
+   single show hanging off that account. Clips cut from conference talks,
+   interviews and other people's podcasts all claimed to be from the same
+   show. Nobody set that; the formula fell through to it.
+2. **It joins with `", "` across channels.** A video on both Solana accounts
+   reads `"Solana Ecosystem Calls, Solana Ecosystem Calls"`, which plain
+   equality against the show name never matched. 71 videos vanished this way.
+   **This was never Solana-specific** — any client whose videos sit on two of
+   their channels lost them. Fixed in commit 4c908a9: the selector now splits
+   the lookup on commas.
+3. **It is empty when a video has neither an episode nor a channel.** 27 more
+   Solana videos.
+
+Together those dropped **94 of Solana's 419 videos** — its page showed 31 for
+the last 90 days where Airtable counts 73.
+
+**So a client's videos can be selected by the Client Account link instead** —
+`CLIENT_VIDEO_ACCOUNTS="solana=Solana"` on gf-api (slug = Client Account
+name(s), `|`-separated), commit 4c908a9. That is the field that actually
+records whose work a video is. Show-name selection stays the default for
+everyone else.
+
+**The Show record was renamed** `Solana Ecosystem Calls` → `Solana`
+(`recvWuv9KSV6qg15z`, 2026-09-21), so the label is at least true now. It was
+safe: the record is a Watchlist bucket created 2026-09-03 with no Client
+Account and no episodes — OPERATIONS already listed it among the five shows
+that will never sync. Renaming makes `slugify()` give `solana`, colliding
+with the CLIENT_GROUPS slug of the same name; harmless, because `client_view`
+checks groups before shows.
+
+**`CLIENT_NO_SHOWS`** (commit 6d880de; currently `solana`) still drops the
+attribution on the client page, since one show name on every row is noise
+even when true. It clears the show from every video and post *after*
+selection (selection by show has to happen first or the list comes back
+empty), empties the shows list so the Views-by-show card hides, and the
+drawer's Show column renders only when a row actually carries one.
 
 **The video Type column is gone from client pages** (same commit). Every
 clip is a Vertical Clip, so the column told a client nothing. It stays on
