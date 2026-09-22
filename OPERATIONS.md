@@ -1212,6 +1212,47 @@ discovery path via the Business's Instagram accounts
 (`/{business-id}/instagram_accounts`, plus owned ones) before it can be trusted
 for that account.
 
+**Settled 2026-09-21 (commit f28bb6b): the Business's Instagram edges do not
+work, its Pages edge does.** With a system-user token for GF Automations and
+`META_BUSINESS_ID=1651224375632743`, every Instagram edge on the Business node
+is refused — `owned_instagram_accounts` and `instagram_accounts` return HTTP
+400 "does not exist, cannot be loaded due to missing permissions, or does not
+support this operation", and `client_instagram_accounts` is not a field at all
+— while `owned_pages` **on the same business id succeeds**. So this was never a
+scopes problem, and the two trips back to the token dialog chasing
+`business_management` were wasted. `/me/businesses` also returns empty for a
+system user, which is normal and not a signal.
+
+So `add_business_instagram_accounts()` in `insta_sync.py` walks
+`/{business}/owned_pages` with
+`fields=name,access_token,instagram_business_account{id,username,followers_count}`
+and reads the Instagram account off each Page, using the Page token the
+business hands back. `/me/accounts` returns only the Pages the token
+administers itself; `owned_pages` returns all 10 the business owns.
+
+First real run, 2026-09-21 23:59 — **7 accounts reached**: @steelmandebate 339,
+@us_in_common 7,984, @startup__academy 5,956, @legit.conspiracies 1,691,
+@real.good.crypto 13, @bg2clips 7,797, @techno.optimist.prime 56,236. Three
+owned Pages carry no Instagram account (Good Billionaires, Business School,
+Good Future Media). Two of the eleven the Page route could never see are now
+covered: **@legit.conspiracies and @real.good.crypto**.
+
+**The other nine are out of reach by any token** — @real.good.politics,
+@weightsandbiases, @goodbillies, @innovators_exchange, @10xpod,
+@tech.totherescue, @altryne_ai, @all_in_stans, @piratewires. The Graph API only
+reaches an Instagram Business account through a Facebook Page, and no Page the
+business owns links to these. Fixing that is an Instagram-side job (link each
+account to a Page) or a Business-settings one (bring the Page into the
+business), not a code change.
+
+**`META_USER_ACCESS_TOKEN` returned 403 on that same run** ("Token validation
+failed: 403"), after three full manual runs inside 35 minutes — most likely an
+app-level rate limit rather than an expiry, since the same token validated fine
+at 23:31. The Page walk did nothing that run and the business route carried it
+alone, which is the reason `sync_instagram_followers` no longer returns early
+when `build_instagram_mapping` fails. Confirm against the next scheduled run
+(`0 5 * * *` UTC) before treating the token as broken.
+
 (Earlier note, superseded: posts on **two pages** skip with "Could not find valid access
 token" — the rebuilt `FACEBOOK_PAGES` holds 12 pages, the first token's list
 held 13. ThursdAI and Trading Places posts are the ones seen skipping. Assign
