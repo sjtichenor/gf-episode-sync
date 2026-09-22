@@ -1696,6 +1696,17 @@ in three separate ways, all of which bit the Solana page on 2026-09-21:
 Together those dropped **94 of Solana's 419 videos** — its page showed 31 for
 the last 90 days where Airtable counts 73.
 
+**The same formula zeroed the Videos tile on the team overview** whenever it
+was filtered to one account (fixed 2026-09-22, commit 61673ea). Videos were
+matched to an account by comparing that account's show names against the
+video's Show — and a blank or `"Show, Show"` value equals no show name, so
+the tile read **0** next to 514 posts. A video has no account of its own:
+posts now carry their `video` id and the page builds a video → accounts map
+once per load from every post (not the range-filtered ones, or narrowing the
+range would unlink a video from whoever posted it). The show filter takes
+either route as well — the name, split on commas, or an account of that show
+having posted the video.
+
 **So a client's videos can be selected by the Client Account link instead** —
 `CLIENT_VIDEO_ACCOUNTS="solana=Solana"` on gf-api (slug = Client Account
 name(s), `|`-separated), commit 4c908a9. That is the field that actually
