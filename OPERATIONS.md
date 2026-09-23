@@ -1244,13 +1244,29 @@ number the official API stopped updating. A reachable account is overwritten
 by the platform sync later the same day (better figure, small gap); a muted
 pair is never touched. A filled finding drops to "look", so it does not send
 the email but the log still says the official sync is lagging.
-`SB_FILL_CHANNELS=0` disables it. Dry-run 2026-09-23: exactly one write,
-Good Politics IG Followers 128,220 → 150,567.
+An **empty** field with a Social Blade row behind it (`NO FIELD`) is filled
+the same way — ThursdAI's Instagram and TikTok and Solana Clipped's TikTok
+had months of daily rows that nothing ever copied across. A Social Blade
+row up to **three days old** is accepted (it skips the odd day on small
+accounts). `SB_FILL_CHANNELS=0` disables it. Dry-run 2026-09-23, seven
+writes: Good Politics IG 128,220 → 150,567; Solana TikTok 2,406 → 7,085;
+Solana Clipped TikTok → 19; ThursdAI IG → 6,733, TikTok → 440; Weights &
+Biases IG → 1,845, TikTok → 587. Weights & Biases was not asked for but
+falls under the same rule (empty field, Social Blade has it).
 
-`HEALTH_IGNORE` on gf-follower-snapshot is
-`Oliver Wyman/*;ThursdAI/Facebook;Solana/TikTok` (Spencer, 2026-09-23):
-client accounts we never had API access to, ThursdAI's numbers are entered
-by hand, and Solana TikTok is no longer posted to.
+**Consequence for the mute list:** once the fill exists, a `DIVERGES` or
+`NO FIELD` that Social Blade can fill never alerts, so the only reasons
+left to mute something are (a) Social Blade's own number is untrusted
+(Oliver Wyman TikTok reads 2,463, suspiciously US In Common's figure) or
+(b) Social Blade cannot see it and nobody cares. `HEALTH_IGNORE` on
+gf-follower-snapshot is therefore `Oliver Wyman/*;ThursdAI/Facebook`
+(Solana/TikTok came off the list 2026-09-23 so it gets filled). Mute means
+*do not touch*: no report, no email, no fill.
+
+**ThursdAI's numbers were being entered by hand.** Instagram and TikTok are
+now Social Blade's daily; YouTube (54,500, within 5% of Social Blade) is
+left as entered unless it drifts; Facebook (`profile.php?id=` URL) and X
+still have no source.
 
 First audit, 2026-09-23, against live data — 5 to act on: **Good Politics
 Instagram** Channels 128,220 vs Social Blade 150,567 (the IG sync cannot
