@@ -1475,6 +1475,18 @@ limit around post 2,000 of 2,940 — posts without a username in the URL
 cost ~30 s each in "searching across all accounts". Lookback is back to
 120 days.
 
+**Recurrence, 2026-09-23 — the same double count, by hand.** Colin kept
+setting "All in 8/28 - Cancer Vaccine Patenting" (Startup Academy Instagram,
+`recUQNunxEr6Ov742`) to 744,000 because that is what the Instagram app shows;
+the sync wrote 249,928 back every morning. Both are "right": the app's figure
+for a reel shared to Facebook is Instagram **plus** Facebook, and the
+Facebook reel is its own row (`recWqktloG5MhJSTo`, 490,766). 249,928 +
+490,766 = 740,694 ≈ 744,000. Hand-entering the app's number counts the
+Facebook plays twice, so the video's total read 1.23M instead of ~741k. No
+code change; the sync is correct. Rule for the team: **Airtable Views on an
+Instagram post is Instagram only — if the app shows more, the difference is
+already on the Facebook row.**
+
 New cron **gf-instagram** (`crn-daka3ibm8hqs73drhcf0`, our repo,
 `0 5 * * *`, `python insta/sync_insta.py`, starter) replaces Farhan's
 `Instagram service (posts+followers)` (`crn-d2skb295pdvs739idln0`). The
