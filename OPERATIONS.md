@@ -1608,6 +1608,34 @@ than Airtable interfaces.
   `ffp=FFP:Steelman|US In Common;solana=Solana:Solana|Solana Clipped;bg2=BG2:BG2`.
   The page 404s until Spencer adds `bg2=<password>` to `CLIENT_PASSWORDS`.
 
+- **Mining board** (`/dashboard/mine`, `dashboard/mine.html`, added
+  2026-09-23) replaces the Airtable "Available to Mine" interface (Director
+  Tools → `pagIbKARIPGfbCePo`), which was a flat list of ~475 episodes with
+  no playback, no claim, and no idea what had already been cut. What the
+  data showed before building it: **Mining Status was blank on all 492
+  episodes**, nothing had ever been marked Mined, only 13 had a Miner, 81
+  episodes already had clips and still showed as available, and 159
+  "Don't Mine" episodes were in the list. So the board **infers** state
+  rather than trusting the fields: *taken* = Miner set and status not
+  Mined/Skipped; *clipped* = `# of Clips` > 0 or status Mined. Full Episodes
+  now rides along in the snapshot (`EP` map in `data.py`; `episodes` key;
+  never reaches a client page). Page: pick your name once (Team table,
+  remembered in `localStorage` as `gf-miner`), search across title / guest
+  (the AI-detected field) / show / description, priority chips (Don't Mine
+  off by default; shift-click isolates one), hide-taken and hide-clipped
+  toggles (both on), date range (30 days default), cards grouped by
+  priority and sorted newest first, inline YouTube player in a drawer when
+  the episode has a link, else the episode page. Actions post to
+  `/dashboard/api/mine/act` (`claim` / `start` / `release` / `mined` /
+  `skip`), which PATCHes Full Episodes by **field id** (Miner, Mining
+  Status, Claimed At) and mirrors the change into the snapshot so the next
+  paint is right; the page re-reads every 30 s so a teammate's claim shows
+  up. No record locking, same as the interface it replaces. **Identity is
+  the shared team password plus a self-picked name** — fine internally,
+  not an audit trail. Needs the gf-api Airtable token to have **write**
+  scope on Full Episodes; the first real Claim proves it either way.
+  `DASHBOARD_FAKE_DATA=1` serves 140 fake episodes for layout work.
+
 - **Audience demographics** (2026-09-11): table `Audience Demographics`
   (`tblG4ElwziblQZM9E`): one row per account · platform · dimension (Age,
   Gender, Country, City) · segment · week (Monday). Written by
