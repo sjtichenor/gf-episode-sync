@@ -1236,6 +1236,22 @@ email now means "open the log, read the DATA HEALTH block"**, not that the
 snapshot broke. `HEALTH_IGNORE="Good Politics/Instagram;Steelman/*"` mutes
 accepted cases (`;` or `,` separated, `*` for every platform).
 
+**Frozen fields are filled from Social Blade** (`fill_from_socialblade` in
+`snapshot_followers.py`, same commit series, 2026-09-23). A `DIVERGES` finding
+whose Social Blade row is from today or yesterday gets that figure written
+into the Channels follower field, so the Airtable interface stops showing a
+number the official API stopped updating. A reachable account is overwritten
+by the platform sync later the same day (better figure, small gap); a muted
+pair is never touched. A filled finding drops to "look", so it does not send
+the email but the log still says the official sync is lagging.
+`SB_FILL_CHANNELS=0` disables it. Dry-run 2026-09-23: exactly one write,
+Good Politics IG Followers 128,220 → 150,567.
+
+`HEALTH_IGNORE` on gf-follower-snapshot is
+`Oliver Wyman/*;ThursdAI/Facebook;Solana/TikTok` (Spencer, 2026-09-23):
+client accounts we never had API access to, ThursdAI's numbers are entered
+by hand, and Solana TikTok is no longer posted to.
+
 First audit, 2026-09-23, against live data — 5 to act on: **Good Politics
 Instagram** Channels 128,220 vs Social Blade 150,567 (the IG sync cannot
 reach real.good.politics, so the field is frozen — same class as US In
