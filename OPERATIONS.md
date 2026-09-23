@@ -1608,6 +1608,15 @@ than Airtable interfaces.
   `ffp=FFP:Steelman|US In Common;solana=Solana:Solana|Solana Clipped;bg2=BG2:BG2`.
   The page 404s until Spencer adds `bg2=<password>` to `CLIENT_PASSWORDS`.
 
+- **Favicons** (2026-09-23): `dashboard/static/` holds `favicon.svg`,
+  `favicon.ico` (a 32px PNG in an ICO wrapper), `favicon-32.png` and
+  `apple-touch-icon.png` (180px) — the brand dot with a white G. Served at
+  the app root by routes in `tiktok_auth.py` (week-long cache header), so the
+  API landing page and TikTok pages get them by default; the four dashboard
+  pages and the login template link them explicitly. The PNGs were
+  rasterised by a pure-Python script (no Pillow on the dev machine); to
+  change the mark, edit `favicon.svg` and re-rasterise to match.
+
 - **Mining board** (`/dashboard/mine`, `dashboard/mine.html`, added
   2026-09-23) replaces the Airtable "Available to Mine" interface (Director
   Tools → `pagIbKARIPGfbCePo`), which was a flat list of ~475 episodes with
