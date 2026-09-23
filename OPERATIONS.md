@@ -1213,6 +1213,40 @@ discovery path via the Business's Instagram accounts
 (`/{business-id}/instagram_accounts`, plus owned ones) before it can be trusted
 for that account.
 
+**Daily data-health audit** (`followers/health.py`, run by gf-follower-snapshot
+at the end of every 09:00 UTC run; added 2026-09-23 after the US In Common
+incident). For every **active** channel, on every platform it has a profile
+URL for:
+
+| Check | Means | Severity |
+|---|---|---|
+| `NO ROW` | nothing in Follower Logs for 2+ days (Instagram/TikTok/YouTube/Facebook only — X and Threads have no daily source) | act |
+| `DIVERGES` | the Channels follower field is >5% off Social Blade's latest row — the platform sync that writes Channels is broken while Social Blade is fine. **The dashboards cannot see this one** because they read the logs; the Airtable interface reads the field. | act |
+| `FLAT` | the last 3 logged counts are identical (accounts ≥100 only) | look |
+| `NO FIELD` | profile listed, follower field never written | look |
+
+`DIVERGES` only trusts rows whose Notes start "Social Blade" — a row the
+snapshot copied out of the Channels field cannot contradict it, which is
+why BG2 and Solana Facebook did *not* fire the day their fields were fixed.
+The report prints every day. When anything is at "act" severity and
+`HEALTH_ALERT` is not `0`, the job exits **3** after all its writes, so
+Render sends the cron-failed email — deliberately, it is the only push
+channel until `SLACK_BOT_TOKEN` exists. So **a gf-follower-snapshot failure
+email now means "open the log, read the DATA HEALTH block"**, not that the
+snapshot broke. `HEALTH_IGNORE="Good Politics/Instagram;Steelman/*"` mutes
+accepted cases (`;` or `,` separated, `*` for every platform).
+
+First audit, 2026-09-23, against live data — 5 to act on: **Good Politics
+Instagram** Channels 128,220 vs Social Blade 150,567 (the IG sync cannot
+reach real.good.politics, so the field is frozen — same class as US In
+Common); **Solana TikTok** 2,406 vs 7,085 (TikTok sync not reaching
+@solana); **Oliver Wyman TikTok** 25 vs 2,463 (one of the two sources is
+looking at the wrong account — 2,463 is suspiciously US In Common's 9/21
+figure); **Oliver Wyman Instagram** and **ThursdAI Facebook** never logged
+(profile.php-style URLs Social Blade cannot resolve, and no Page token).
+To look at: Solana YouTube flat at a round 95,500 (hand-typed, never
+synced); Weights & Biases TikTok flat at 587.
+
 **Facebook follower counts silently skip any channel whose name is not
 typed exactly like its Page** (found 2026-09-22 when someone reported US In
 Common not updating; fixed in commit 88694ab). `sync_facebook_followers` in
