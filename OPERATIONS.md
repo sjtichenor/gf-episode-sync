@@ -1522,12 +1522,41 @@ than Airtable interfaces.
   rows open a drawer listing the posts behind the number (`openDrill` in
   `index.html`; Chart.js `onClick` via the `clickable()` helper). Client
   pages hide the "dated by log entry" and median subtitles.
-- **Auth**: `dashboard/auth.py`. One team password, `DASHBOARD_PASSWORD` env
-  var on gf-api; a correct login sets a signed HttpOnly cookie for 30 days.
-  `DASHBOARD_SECRET` (optional) signs it; without it the key derives from the
-  password, so changing the password logs everyone out. Ten wrong guesses
-  from one address → ten-minute lockout. Next step if the audience grows:
-  Google sign-in restricted to the domain.
+- **Auth** (`dashboard/auth.py`; Google sign-in added 2026-09-24):
+  - **Team = Sign in with Google.** `GOOGLE_OAUTH_CLIENT_ID` /
+    `GOOGLE_OAUTH_CLIENT_SECRET` on gf-api (Spencer's paste; OAuth client in
+    the Workspace org, consent screen *Internal*, redirect URI
+    `https://api.goodfuturemedia.com/dashboard/auth/google/callback`;
+    `DASHBOARD_BASE_URL` overrides the host). Allowed = any address on
+    `DASHBOARD_ALLOWED_DOMAIN` (default goodfuturemedia.com) **or** an email
+    matching an Active row in the Team table (so a contractor on Gmail works
+    if they are in the table; set someone Inactive and they are out). The
+    session cookie `gf_dash` is signed JSON (email, name, exp) at path **`/`**
+    for 30 days, so a team member is also let into every `/clients/…` page.
+    Identity → Team row is resolved on each request by email, so adding a
+    row later needs no new login. Flow: `/dashboard/auth/google` sets a
+    signed 10-minute state cookie carrying the return path, Google redirects
+    to `…/callback`, code → token → `openidconnect …/userinfo`; unverified or
+    unknown emails bounce to the login page with a plain message.
+  - **Shared password still works** (`DASHBOARD_PASSWORD`) and yields an
+    anonymous team session; the pre-2026-09-24 bare-token cookie at
+    `/dashboard` is still accepted, so the deploy logged nobody out. Ten
+    wrong guesses from one address → ten-minute lockout.
+  - **Admins**: `DASHBOARD_ADMINS` (default `spencer@goodfuturemedia.com`, which
+    is the email on Spencer's Team row) may act as someone else on the
+    mining board. Everyone else is themselves; a domain address with no Team
+    row can sign in but is told to be added before it can claim.
+  - **Clients are unchanged**: password only, no username, one cookie per
+    slug. The check is now *client password for this slug **or** a team
+    session*. `/dashboard/api/whoami` returns the resolved identity.
+  - `DASHBOARD_SECRET` (optional) signs everything; without it the key
+    derives from the passwords, so changing either logs everyone out.
+  - Verified with an eleven-step TestClient run (no Google involved): login
+    page + redirect, forged state bounced, team sign-in resolves to the Team
+    row, opens a client page and its data, non-admin cannot claim as someone
+    else, admin can, stranger refused with no cookie, domain address without
+    a row gets in but cannot claim, shared password anonymous, old cookie
+    still valid, logout clears.
 - **Page**: `dashboard/index.html`, vanilla JS + Chart.js 4 from cdnjs, Inter
   from Google Fonts. Filters (show, account, editor, platform chips — shift-
   click isolates one — range, GF-owned) live in the URL, so "Copy link"
