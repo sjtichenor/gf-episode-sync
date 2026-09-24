@@ -1549,6 +1549,19 @@ than Airtable interfaces.
   - **Clients are unchanged**: password only, no username, one cookie per
     slug. The check is now *client password for this slug **or** a team
     session*. `/dashboard/api/whoami` returns the resolved identity.
+  - **Exec-only pages** (2026-09-24): `CLIENT_EXEC_ONLY` on gf-api lists
+    slugs (currently `flock`) that a team session may open only with the
+    **Exec** role — the Team table's Role field, which exactly Spencer and
+    Chris P Madden carry. Any other signed-in colleague gets a 404 on the
+    page, its login and its data, and the slug is left off `/dashboard/links`
+    (with an "exec-only" note for execs). The client's own password is
+    unaffected; the shared-password session counts as not-exec. Role is
+    resolved per request from the snapshot, so changing it in Airtable takes
+    effect within 15 minutes with no re-login. `DASHBOARD_EXECS` (emails) is
+    a fallback for an address with no Team row; `DASHBOARD_EXEC_ROLE`
+    (default `Exec`) names the role. Exec is about *seeing*; admin
+    (`DASHBOARD_ADMINS`) is about *acting for someone* on the mining board —
+    kept separate on purpose.
   - `DASHBOARD_SECRET` (optional) signs everything; without it the key
     derives from the passwords, so changing either logs everyone out.
   - Verified with an eleven-step TestClient run (no Google involved): login
