@@ -1917,6 +1917,17 @@ name(s), `|`-separated), commit 4c908a9. That is the field that actually
 records whose work a video is. Show-name selection stays the default for
 everyone else.
 
+**A page can also carry work tagged to the client elsewhere** —
+`CLIENT_ALSO_BY_CLIENT="ffp=FFP"` on gf-api (slug = Client Account name(s),
+`|`-separated; added 2026-09-24). FFP is an account group (Steelman + US In
+Common), but videos made for FFP sometimes go out on our own accounts;
+they carry Client Account = FFP (151 videos as of 2026-09-24) and their posts
+inherit it in the snapshot, so both are added on top of the account-based
+selection. A post from one of our accounts has its `channel` blanked, same
+as a show-based page, so the client sees the clip and its numbers but not
+which of our accounts ran it. Not applied to title-matched clients. The
+Dashboards page notes it on the row.
+
 **The Show record was renamed** `Solana Ecosystem Calls` → `Solana`
 (`recvWuv9KSV6qg15z`, 2026-09-21), so the label is at least true now. It was
 safe: the record is a Watchlist bucket created 2026-09-03 with no Client
