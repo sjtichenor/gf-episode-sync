@@ -1943,6 +1943,16 @@ selection (selection by show has to happen first or the list comes back
 empty), empties the shows list so the Views-by-show card hides, and the
 drawer's Show column renders only when a row actually carries one.
 
+**Client drill-down shows Episode, not Show** (2026-09-24). Videos in the
+snapshot carry `episode` — the title of the linked Full Episode
+(`flda34XvSlQaFXapj`) — and the client Videos drawer shows that column in
+place of Show; the team drawer keeps Show and adds Episode. Both columns
+render only when some row has a value. Coverage is thin where clips come
+from YouTube segments or client source files rather than a logged episode:
+BG2 has 35 of 315 videos linked to an episode, all from 2024, so its
+recent range shows no Episode column at all — which is the honest result
+until someone links clips to episodes.
+
 **The video Type column is gone from client pages** (same commit). Every
 clip is a Vertical Clip, so the column told a client nothing. It stays on
 the team page, where Horizontal Clip / Full Episode / Promo / Repackaged /
