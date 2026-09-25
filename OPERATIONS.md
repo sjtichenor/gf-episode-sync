@@ -2190,8 +2190,9 @@ new **Default Miner** link on Shows (`fldE0FjzekRf7Kh2u`, e.g. Courtland for
 ThursdAI, Nick for Trading Places) — set it in Airtable, it shows as
 "usually …" on the card and is preselected in the assign picker.
 
-**Hide.** Execs also get **Hide** (and **Unhide** with the "Show hidden"
-toggle on): it ticks **Hide from Mining Board** (`fld1SWYVBIN9ouRFr`, checkbox
+**Hide.** Execs get a small × in the top-right corner of every card (↺ on a
+hidden card, visible with the "Show hidden" toggle on), with an instant
+hover tooltip; hiding pops a toast with **Undo** for 7 s. It ticks **Hide from Mining Board** (`fld1SWYVBIN9ouRFr`, checkbox
 on Full Episodes) and the episode leaves everyone's board. Non-execs see
 "Ask Spencer or Chris" on a locked client-show card. Execs get **Unassign**
 on a card someone else holds (a release in their name). All three are
