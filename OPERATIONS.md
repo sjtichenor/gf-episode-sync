@@ -2190,6 +2190,13 @@ new **Default Miner** link on Shows (`fldE0FjzekRf7Kh2u`, e.g. Courtland for
 ThursdAI, Nick for Trading Places) — set it in Airtable, it shows as
 "usually …" on the card and is preselected in the assign picker.
 
+**Hide.** Execs also get **Hide** (and **Unhide** with the "Show hidden"
+toggle on): it ticks **Hide from Mining Board** (`fld1SWYVBIN9ouRFr`, checkbox
+on Full Episodes) and the episode leaves everyone's board. Non-execs see
+"Ask Spencer or Chris" on a locked client-show card. Execs get **Unassign**
+on a card someone else holds (a release in their name). All three are
+`EXEC_ACTIONS` in routes.py; the API refuses them for non-execs.
+
 Execs (Spencer, Chris — `is_exec`, the same rule as the Flock page) get an
 **Assign… / Reassign…** button on every card, client or not: a picker with
 Directors first, then everyone else. It posts `action: assign` with `who`;
