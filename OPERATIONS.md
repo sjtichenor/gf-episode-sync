@@ -2059,6 +2059,17 @@ names. The sync learns prefix → Client Account from the rows already there
 falls back to the Stripe customer name and logs
 `no Client Account mapping for prefix …` so someone adds it.
 
+**Ignored:** `STRIPE_IGNORE="SPEN-0001"` on gf-api — a $10,000 test invoice
+Spencer sent himself in 2022 that Stripe holds as Uncollectible; without the
+ignore it would sit in Revenue Per Client. Exact numbers or `PREFIX-*`.
+
+**First pass, 2026-09-25 17:01 UTC:** 109 Stripe invoices, 88 rows; created
+7 (SOL-0011, AJC-0003, PVC-0014 — the three issued since the base was split —
+plus 10X-0008 and 724B8BBD-0001, two 2024 invoices never entered by hand,
+20FUND-0003, a $900 20VC invoice open since 2022, and SPEN-0001, since
+removed); updated all 88 with Status and the Stripe link, and filled paid
+dates on the four rows moved over that morning (SOL-0010 paid 2026-09-21).
+
 **Manual runs:** `POST /dashboard/api/stripe/sync` (admin session; `?dry=1`
 plans without writing) returns the summary; `GET /dashboard/api/stripe/status`
 shows the last pass and any error. Failures never stop the timer — the next
