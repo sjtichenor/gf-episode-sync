@@ -2059,10 +2059,13 @@ names. The sync learns prefix → Client Account from the rows already there
 falls back to the Stripe customer name and logs
 `no Client Account mapping for prefix …` so someone adds it.
 
-**Client Account may be a single select.** Writes go with `typecast: true`,
-so a first invoice from a new client adds its name as an option rather than
-failing; the REST API returns a select as its plain name, so the learned
-prefix map is unaffected. (Spencer converted the field 2026-09-25.)
+**Client Account may be text, a single select, or a link to Client Accounts
+(`tblT6T1af3OzvTwh8`)** — the main base had it as a link and Spencer is
+recreating that. The sync notices a link from the rows it reads (record ids
+come back as a list), resolves them to names through the Client Accounts
+primary field, and writes names as one-item lists; with `typecast: true`
+Airtable resolves a name to the matching client record and creates one when
+the client is new. The learned prefix map works on names either way.
 
 **Ignored:** `STRIPE_IGNORE="SPEN-0001"` on gf-api — a $10,000 test invoice
 Spencer sent himself in 2022 that Stripe holds as Uncollectible; without the
