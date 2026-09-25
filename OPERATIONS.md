@@ -2119,3 +2119,45 @@ Status, tabs Unpaid (paid date empty and not void) / Paid / Void.
 Only 13 of the 84 pre-split invoices ever had videos linked (the Brad
 Gerstner / Oliver Wyman / Slice / PVC-0001 ones); the rest legitimately show
 $0 editor cost.
+
+### Team, Contracts and Team Months — pay lives in the Invoices base (2026-09-25)
+
+The per-video `Base Pay` / `Performance Bonus` / `Total Editor Pay` formulas
+on the main base's Videos table are the experimental ones; compensation now
+lives in **Good Future Invoices**, which only the people who should see pay
+can open.
+
+- **Team** (`tblVtqKWu348fHzCk`) — one row per person, seeded and kept
+  current by gf-api from the main base's Team table (name, email, roles,
+  status, start date; matched on `Main base record`, `fld3tOjQK9eDPofDz`).
+  Computed: **Current Monthly Base** (rollup of the contract in force),
+  **Avg Videos / Month** (finished as editor over the last three complete
+  months ÷ 3), **Avg Cost per Video** (base ÷ average). Notes is free text.
+- **Contracts** (`tblH057iCn5HvkScX`) — hand-typed: Person, Start/End Date,
+  Pay Plan (Flat monthly / Base + performance bonus / Per video / Hourly /
+  Other), Monthly Base, Per-video Rate, Hourly Rate, Pay Notes, Contract
+  File. A raise or scheme change is a *new* contract with the old one
+  ended, so history stays. `Is Current` / `Base if Current` are helpers.
+- **Team Months** (`tbldc73RXSYfxOE0U`) — written daily by
+  `invoicing/team_months.py` inside gf-api (180 s after boot, then every
+  `TEAM_MONTHS_SECONDS`, default 86400; from `TEAM_MONTHS_FROM`, default
+  2024-01): per person per month, Videos Finished (editor, by Date Finished
+  Editing), Videos Posted (editor, by the video's first post date), Videos
+  Directed, and Base Pay from the contract in force on the 1st. Rows exist
+  for any month with output or with a contract in force. **Bonus** and Notes
+  are never written — type the bonus in until its rule is replicated.
+  Cost per Video = (Base Pay + Bonus) ÷ Videos Finished. Rows are matched on
+  Person + Month; the Key (`Name · YYYY-MM`) is display only.
+
+Manual: `POST /dashboard/api/team-months/sync` (admin; `?dry=1`), status at
+`GET /dashboard/api/team-months/status`. Uses the dashboard snapshot, so it
+sees exactly what the Team page sees.
+
+Interface pages in Business Tools: **Team & Pay** (people with their
+contracts nested; tabs Active / Editors / Directors) and **Team Months**
+(grid, Person and Month dropdowns).
+
+Still to do, second step: write each video's estimated cost (its editor's
+cost-per-video for the month it was finished) into a field on the main
+base's Videos table so it syncs across and the invoice's Editor Cost rollup
+sums it — replacing the Total Editor Pay formula the rollup reads today.
