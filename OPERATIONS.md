@@ -2178,3 +2178,22 @@ the set).
 **Team Months first pass, 2026-09-25 21:23 UTC:** 49 Team rows seeded, 280
 person-months since 2024-01, 0 contracts (all Base Pay blank until contracts
 are typed in).
+
+### Mining board: client shows are assigned, execs can assign (2026-09-25)
+
+Episodes of shows whose Relationship is **Client** (BG2Pod, Trading Places,
+The First, Lenny's Podcast, ThursdAI, 5 Year Frontier today) sit in their own
+**Client shows** section at the top of `/dashboard/mine`, ahead of the
+priority groups, and are not up for grabs: only the show's usual miner can
+claim one, everyone else sees "Assigned internally". The usual miner is the
+new **Default Miner** link on Shows (`fldE0FjzekRf7Kh2u`, e.g. Courtland for
+ThursdAI, Nick for Trading Places) — set it in Airtable, it shows as
+"usually …" on the card and is preselected in the assign picker.
+
+Execs (Spencer, Chris — `is_exec`, the same rule as the Flock page) get an
+**Assign… / Reassign…** button on every card, client or not: a picker with
+Directors first, then everyone else. It posts `action: assign` with `who`;
+the API refuses that action for anyone who is not exec or admin, and writes
+the same fields as a claim (Miner, Mining Status = Claimed, Claimed At) in
+the assignee's name. Snapshot: shows carry `default_miner(_id)`; episodes
+carry `client`, `suggested`, `suggested_id`.
