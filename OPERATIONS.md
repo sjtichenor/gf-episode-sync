@@ -2109,6 +2109,13 @@ video ids from the main base were matched to synced rows by **Date Created**
 (`fldVoG4211Gs8QkHB`) was added to the main Videos table for this and is
 worth adding to the sync view for next time; it was not needed in the end.
 
+**Business Tools interface** (`pbdvOKCj1c8onoP4w`) now has **Uninvoiced
+Videos** (`pagoWhs8N4SbYvLux`: synced Videos scoped to `Invoices` empty,
+grouped by client, dropdowns for client / video status / posted date) and a
+rebuilt **Invoices** page (`pag997vGBTwdftX7a`, replacing `pagbuLC0F1KFjPIMI`)
+with Status, Linked Videos, Editor Cost and the Stripe link, rows coloured by
+Status, tabs Unpaid (paid date empty and not void) / Paid / Void.
+
 Only 13 of the 84 pre-split invoices ever had videos linked (the Brad
 Gerstner / Oliver Wyman / Slice / PVC-0001 ones); the rest legitimately show
 $0 editor cost.
