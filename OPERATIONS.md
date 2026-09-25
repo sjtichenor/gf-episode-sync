@@ -2197,3 +2197,46 @@ the API refuses that action for anyone who is not exec or admin, and writes
 the same fields as a claim (Miner, Mining Status = Claimed, Claimed At) in
 the assignee's name. Snapshot: shows carry `default_miner(_id)`; episodes
 carry `client`, `suggested`, `suggested_id`.
+
+### Contractor Invoices — editors' and directors' invoices in the Invoices base (2026-09-25)
+
+Every contractor invoice already arrives the same way: emailed to
+**billing@goodfuturemedia.com** with `[BILLING]` in the subject and a PDF
+attached (a Google group that lands in Spencer's inbox; he forwards each to
+`goodfuture@qbodocs.com` for QuickBooks). Table **Contractor Invoices**
+(`tblApcqbrnN31B6xP`) in Good Future Invoices: Invoice (label), Person →
+Team, Invoice #, Period (first of the month covered), Amount, Hours, Clips,
+Base, Bonus, Status (Received / Approved / Paid / Query), Received, Paid,
+PDF, From, Subject, Email (Gmail link), Summary, Source (Email automation /
+Backfill / Manual), Notes.
+
+**Going forward** — automation **Contractor invoice received**
+(`wflrrVTIsnlzJWGTm`, draft, in the Invoices base): trigger *email
+received* at Airtable's own inbox address (prefix `gfm-contractor-invoices`;
+the full address shows in the trigger in the UI). Steps: findRecords Team
+where Email = sender → AI structured extraction from subject/body/attachment
+names (person_name, invoice_number, period_month, amount, hours, clips,
+base_pay, bonus, summary; "never guess an amount") → createRecord with
+Status Received, Source Email automation. The API cannot map attachments
+into a record, so **Spencer maps PDF ← trigger attachments in the UI**, then
+turns it on, then adds the inbox address as a member of the billing@ group
+(Google Admin → Groups → billing → Members). The AI reads the email, not the
+PDF, so Amount stays blank when it is only on the PDF.
+
+**Backfill, 2026-09-25:** 159 rows from Gmail, Sept 2025 → 2 Sept 2026
+(the `[BILLING]` / billing@ era; earlier matches were Upwork and vendor
+noise). Person linked for all but three senders who are not in Team (Oscar
+Diaz, Ty Cox, Benjamin Hollinger — director test projects) plus Jimmy Loyloy
+(manual data entry; add him to Team and link). Period from the subject's
+month (an invoice dated the 1st–5th is the previous month's work);
+invoice # from subject/snippet; Amount only where the email states a total
+(15 rows, mostly Jaymark's hours/clips/base/bonus breakdowns); Status Paid
+for anything received before 1 Sept 2026, Received after. Resends and
+revisions are separate rows with a Note ("Revision of an earlier send"), so
+a few people show two rows for one month (Vladimir ×4 for August, Carl ×3,
+Alex/Celesti/Julius ×2) — delete the extras. Tax forms, IDs and Chris's
+replies were excluded. No PDFs on backfilled rows; the Email link opens the
+original.
+
+Interface page **Contractor Invoices** in Business Tools: grid, tabs To pay
+/ Paid / Needs a person.
