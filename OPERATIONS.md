@@ -2082,3 +2082,33 @@ dates on the four rows moved over that morning (SOL-0010 paid 2026-09-21).
 plans without writing) returns the summary; `GET /dashboard/api/stripe/status`
 shows the last pass and any error. Failures never stop the timer — the next
 pass retries.
+
+### Videos linked from the Invoices base via a synced table (2026-09-25)
+
+Airtable links cannot cross bases, so the Invoices base's `Videos` column
+came over in the split as comma-joined text. Fixed by syncing the main base's
+Videos table in: view **Invoicing sync** on Videos (main base; no filter — a
+filtered-out video would drop off its invoice, because the synced table
+deletes rows hidden in the source) → synced table **Videos**
+(`tblJtJXCw7uCKaHNR`) in Good Future Invoices, read-only, automatic sync,
+fields Video Title, Total Editor Pay, Date Posted, Client Account (a real
+link, thanks to the "change plain text fields to linked records" box on
+creation), Video Status, Date Created, Show.
+
+On Invoices: **Linked Videos** (`fldKuTbGYxsbnc3Wf`, link to the synced
+table; Airtable did create the reciprocal **Invoices** field
+`fld8y5qjAJnMGNhGD` on the synced side, so "uninvoiced" = that field empty)
+and **Editor Cost** (`fld9NaowJlQySeAxC`, rollup SUM of Total Editor Pay over
+Linked Videos). The old text `Videos` and the static `Editor Cost (manual)`
+(`fldGfUPsL1aL3EBgi`) are left for Spencer to delete; the rollup matched the
+manual figure on all 13 invoices that had links ($834 total).
+
+Re-linking was done from the old table's real links, not the text: the 155
+video ids from the main base were matched to synced rows by **Date Created**
+(unique to the second — 155/155, no misses). A `Record ID` formula field
+(`fldVoG4211Gs8QkHB`) was added to the main Videos table for this and is
+worth adding to the sync view for next time; it was not needed in the end.
+
+Only 13 of the 84 pre-split invoices ever had videos linked (the Brad
+Gerstner / Oliver Wyman / Slice / PVC-0001 ones); the rest legitimately show
+$0 editor cost.
