@@ -2018,3 +2018,48 @@ followers and net daily change over time; section 2 has an Account dropdown
 and a date-range dropdown, the same two charts, and a grid of snapshots.
 Edit at `https://airtable.com/appxCYu0Tfwc6h7X7/pagIIR9TGpRTk9idM/edit`,
 then Publish. With one day of data every chart is a single point.
+
+### Stripe → Airtable invoice sync — inside `gf-api` (added 2026-09-25)
+
+Invoicing runs through Stripe, so the **Good Future Invoices** base
+(`appQTaSN3LkKVBgPe`, table Invoices `tblx9X2kSBfNYIDvy`) is now written by
+`invoicing/stripe_sync.py` in gf-airtable-automation rather than by a form.
+It runs as a thread inside gf-api every `STRIPE_SYNC_SECONDS` (default 900),
+first pass 90 s after boot, because gf-api is where the two keys were pasted
+(`STRIPE_API_KEY`, a restricted key with Invoices read + Customers read;
+`AIRTABLE_INVOICES_TOKEN`, a PAT scoped to that base only). It also runs as
+`python -m invoicing.stripe_sync [--dry-run]` for a backfill from a laptop.
+
+**Each pass** reads every Stripe invoice (about 100, one or two pages; the
+endpoint has no updated-since filter and a full read is what makes it
+self-healing) and every row in the table, then:
+
+- new finalized invoice → new row: Name = Stripe number (SOL-0010 style — the
+  same per-customer numbering the hand-entered rows already used), Client
+  Account, Amount = `total`, Invoice Date = finalized date, Invoice PDF from
+  Stripe's `invoice_pdf` URL (Airtable fetches it into a real attachment),
+  Status, Stripe Invoice (dashboard link);
+- existing row → Status, Stripe link and Amount follow Stripe; Client
+  Account, dates and PDF are filled only if blank, so a hand correction sticks;
+- drafts ignored; a voided invoice never seen before is not created; void /
+  uncollectible on a known row shows in **Status**.
+
+Rows are matched by the Stripe Invoice URL first, then by number against
+Name. Rows with no Stripe counterpart are untouched.
+
+**Two fields were added** to the table for this: **Status** (single select
+Open/Paid/Void/Uncollectible, `fldjnMdhGDYAOwdAA`) and **Stripe Invoice**
+(URL, `fldDpgq8PCrDuzBxc`). The Business Dashboard's Unpaid/Paid tabs still
+key off Invoice Date Paid, which the sync fills from `paid_at`.
+
+**Client Account names.** Stripe customer names are not the base's short
+names. The sync learns prefix → Client Account from the rows already there
+(SOL→Solana, PVC→Trading Places, BG→Brad Gerstner, AJC→FFP …);
+`STRIPE_CLIENT_MAP="NEW=Client Name;…"` pins or adds one; an unknown prefix
+falls back to the Stripe customer name and logs
+`no Client Account mapping for prefix …` so someone adds it.
+
+**Manual runs:** `POST /dashboard/api/stripe/sync` (admin session; `?dry=1`
+plans without writing) returns the summary; `GET /dashboard/api/stripe/status`
+shows the last pass and any error. Failures never stop the timer — the next
+pass retries.
