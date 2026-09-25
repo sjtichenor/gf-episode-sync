@@ -2059,6 +2059,11 @@ names. The sync learns prefix → Client Account from the rows already there
 falls back to the Stripe customer name and logs
 `no Client Account mapping for prefix …` so someone adds it.
 
+**Client Account may be a single select.** Writes go with `typecast: true`,
+so a first invoice from a new client adds its name as an option rather than
+failing; the REST API returns a select as its plain name, so the learned
+prefix map is unaffected. (Spencer converted the field 2026-09-25.)
+
 **Ignored:** `STRIPE_IGNORE="SPEN-0001"` on gf-api — a $10,000 test invoice
 Spencer sent himself in 2022 that Stripe holds as Uncollectible; without the
 ignore it would sit in Revenue Per Client. Exact numbers or `PREFIX-*`.
