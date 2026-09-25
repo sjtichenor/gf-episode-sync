@@ -2161,3 +2161,20 @@ Still to do, second step: write each video's estimated cost (its editor's
 cost-per-video for the month it was finished) into a field on the main
 base's Videos table so it syncs across and the invoice's Editor Cost rollup
 sums it — replacing the Total Editor Pay formula the rollup reads today.
+
+### AI Copywriter runs itself on the first transcript (2026-09-25)
+
+The button-driven **AI Copywriter** (`wfl6mylWs1YZNYQv3`, trigger
+`inputReceivedFromConnection`) now has a twin, **AI Copywriter (auto, first
+run)** (`wflLTcQDipSDHjkUl`): trigger *record matches conditions* on Videos
+with Transcript (`fldIgXa5EZCq9NF5O`) not empty AND the copy field
+(`fld9EoWkILV5apHVU`) empty, same Opus prompt and same update. It fires once,
+when a video first gets a transcript; the button remains the way to re-run
+after editing Copywriting Notes. Created as a draft via the API — Spencer
+turns it on in the UI. Records that already had a transcript when it was
+switched on do not backfill (record-matches-conditions only fires on entering
+the set).
+
+**Team Months first pass, 2026-09-25 21:23 UTC:** 49 Team rows seeded, 280
+person-months since 2024-01, 0 contracts (all Base Pay blank until contracts
+are typed in).
