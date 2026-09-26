@@ -2666,3 +2666,28 @@ profiles ≈ 42 credits of the 81; the monthly refresh costs the same again
 each month (~$21 at $50/100). Spencer triggers the run by hand today
 (Render → gf-follower-snapshot → Trigger Run); after that the 09:00 cron
 only touches Social Blade on the 1st.
+
+**Instagram handles verified in the browser (2026-09-26 ~09:30 UTC).**
+Instagram serves the profile (name, follower count) to a logged-out real
+browser even though curl gets a bare "Instagram" title, so every guess was
+opened in the built-in browser and read. Corrections: 20VC → `20vchq`
+(162K), Invest Like the Best → `investlikethebest_` (1,430), Cheeky Pint
+→ `stripehq` (Spencer), Acquired → `acquired` (99.8K), Sequoia →
+`sequoiacapital` (66.2K; `sequoia` is a private individual), First Round
+→ `firstroundcapital` (12.9K; `firstround` is a 23-follower squat).
+Confirmed as written: thisweekinstartups 43K, a16z 210K, tbpn 52.8K
+(`tbpnlive` is a 9-follower squat), theallinpod 177K, bg2pod, kevinrose,
+nopriorspod, mastersofscale 85.7K, saastr 11.5K, thepitchshow 5,661,
+capitalallocators 1,500, thepeelpod 685, ycombinator, turpentinemedia (5
+followers but genuinely the network's). Cleared as not the show or
+non-existent: The Logan Bartlett Show (`loganbartlett` is his personal,
+280), Uncapped (`uncappedpod` is a 1-follower squat), Redpoint AI (Spencer:
+no IG), Grit (`gritpodcast` empty; Kleiner's `kleiner_perkins` is the firm,
+not written), Venture Unlocked (`ventureunlocked` is an unrelated page),
+Consumer VC, Full Ratchet, Greylock (`greylock` is a person), Village
+Global (6-follower squat), Sourcery (`sourceryvc` unnamed, 17). Spencer
+removed **Generative Now (Lightspeed)** and **Wish I Knew (Bessemer)**
+entirely: Shows and Channels rows deleted. **TikTok could not be verified**
+(the site bot-walls the browser), so all 18 TikTok URLs were cleared until
+Spencer confirms a list; the Social Blade pull therefore covers Instagram
+only until then.
