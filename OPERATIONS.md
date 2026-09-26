@@ -2340,3 +2340,38 @@ person's actions for that day (time, action pill, clip, detail), with ‹ ›
 and the arrow keys walking along their row and Esc closing it. The Day
 picker in the filter bar still drives the bottom section for the
 everyone-on-one-day view.
+
+### Source Show — which podcast a client's clip was cut from (2026-09-26)
+
+Spencer asked for a Show column on the Solana report: their clips come from
+dozens of different pods, so it is the one column that means something
+there. The Videos `Show` formula cannot supply it (§ "The Videos Show field
+is a formula and a bad selector": every Solana clip reads "Solana"). The
+editors' own material can — the title ("The Peel - Turner Novak, Anatoly
+Yakovenko - …"), the approved tweet copy ("— @toly … on @ThePeelPod"), the
+hashtags (#peelpod), the copywriter's research at the top of its output
+("The podcast is the PokerNews Podcast"), and the SOURCE line in the notes.
+
+**New field on Videos: `Source Show`** (`fldW950uakYMpCGxr`, single line
+text). **`videos/source_show.py` in gf-api** fills it: every hour (first
+run 300 s after boot; `SOURCE_SHOW_SECONDS`, 0 disables) it lists videos of
+the covered Client Accounts (`SOURCE_SHOW_CLIENTS`, default `Solana`,
+`|`-separated) that have no Full Episode and a blank Source Show, packs 15
+at a time into a prompt with that evidence plus the list of show names
+already in the field (so spellings stay consistent), asks Claude
+(`SOURCE_SHOW_MODEL`, default `claude-sonnet-5`) for JSON, and writes the
+answer. Nothing named → it writes **`Unknown`** so the video is not asked
+about again; the dashboards treat that as blank. A value typed by hand is
+never touched; clear a cell to have it re-asked. Needs **`ANTHROPIC_API_KEY`
+on gf-api** (Spencer pastes it; until then the thread does not start).
+Manual: `POST /dashboard/api/source-shows/sync?dry=1&limit=30` (admin;
+dry returns the labels it would write), status at
+`GET /dashboard/api/source-shows/status`. Script form:
+`python -m videos.source_show --dry-run --limit 30`.
+
+**Dashboards:** the snapshot carries `source_show` on every video and the
+client view keeps it (a title-matched client gets none). The videos drawer
+shows `source_show || show`, so a Solana clip reads "The Peel" instead of
+"Solana" on the team overview too. A client page gets the Show column only
+when the values vary — a single-show client would see its own name 48
+times, which is why it was hidden for clients before.
