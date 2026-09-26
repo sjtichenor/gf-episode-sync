@@ -2691,3 +2691,14 @@ entirely: Shows and Channels rows deleted. **TikTok could not be verified**
 (the site bot-walls the browser), so all 18 TikTok URLs were cleared until
 Spencer confirms a list; the Social Blade pull therefore covers Instagram
 only until then.
+
+**TikTok handles, confirmed by Spencer by clicking each (2026-09-26).**
+Corrections: 20VC `@20vc_tok`, Invest Like the Best `@iltbofficial`,
+This Week in Startups `@startups`, The Peel `@thepeelpodcast`, All-In
+`@allin`, Kevin Rose `@thekevinrose`, Y Combinator `@y_combinator`;
+Uncapped and SaaStr have no TikTok. The rest stood: a16z, cheekypint,
+tbpn, bg2pod, acquiredfm, nopriorspod, mastersofscale,
+theloganbartlettshow, thepitchshow. 16 TikTok + 20 Instagram profiles on
+the Benchmark channels → the SB_ONCE pull is ~36 credits. Grit's channel
+also carries Kleiner Perkins' Facebook page (Spencer), not in the pull
+unless SB_PLATFORMS gains facebook.
