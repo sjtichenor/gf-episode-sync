@@ -2834,3 +2834,15 @@ timeout, image/* only, ≤ 4 MB) and sends it as a base64 image block; a
 fetch that fails simply drops that image; any 400 on a batch that carried
 images is retried text-only. `SOURCE_SHOW_RETRY_UNKNOWN` is still 1 so
 the pass after this deploy re-asks the Unknowns; set it to 0 afterwards.
+
+**Results, 10:42 UTC.** The inline-image pass: 220 Unknowns re-asked, 26
+screenshots sent, no batch errors, **36 more labelled** (GoodGame 5, SXSW
+4, All-In Podcast 4, Lightspeed 3, TechCrunch Disrupt 2025 3, ARK, Impact
+Theory, Paul Barron Network, Raoul Pal 2 each, and singles), 39 Source
+Episodes and 35 Source URLs filled, 184 still Unknown — those really are
+title-only. Running total: ~240 of 425 Solana clips labelled.
+`SOURCE_SHOW_RETRY_UNKNOWN` back to 0. First `link_episodes` pass at 10:37:
+205 candidates, 19 shows matched, 60 episodes seen, **1 linked** (YouTube
+id), 204 not linked, almost all "<show> has no episodes yet" — the
+30-day backfill limit, as predicted; the targeted backfill is the next
+step.
