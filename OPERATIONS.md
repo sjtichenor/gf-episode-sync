@@ -2375,3 +2375,80 @@ shows `source_show || show`, so a Solana clip reads "The Peel" instead of
 "Solana" on the team overview too. A client page gets the Show column only
 when the values vary — a single-show client would see its own name 48
 times, which is why it was hidden for clients before.
+
+### Moving the last four of Farhan's services (2026-09-26)
+
+Spencer asked for everything still on `Farhan5217/*` to run from our own
+repos. State after this session:
+
+| Farhan's service | Ours | Status |
+| --- | --- | --- |
+| GF-airtable-automation (X followers) `crn-d2mvhph5pdvs739cenp0` | `followers/x_followers.py` inside gf-api | replaced; **Spencer suspends his** |
+| GF-airtable-automation (twitter posts sync) `crn-d2bjpf9r0fns73fp7n3g`, 07:00 | **gf-x-posts** `crn-darn97jncjis73ebaul0`, `python sync_twitter_posts.py`, 07:00 | created; needs `AIRTABLE_PERSONAL_ACCESS_TOKEN` + `TWITTER_BEARER_TOKEN` pasted, then suspend his |
+| Youtube service (posts+followers) `crn-d2sk98p5pdvs739ibnj0`, 0 */6 | **gf-youtube** `crn-darn96favr4c73fcsfb0`, `python yt/sync_yt.py`, 0 */6 | created; needs `AIRTABLE_PERSONAL_ACCESS_TOKEN` + `YOUTUBE_API_KEY` pasted, then suspend his |
+| Tiktok service (posts) / (followers) | gf-tiktok (since 2026-09-16) | still running in parallel; **Spencer suspends his** |
+| webhook `srv-d8olhujeo5us73eedo10` (branch `whook`) | `webhook/new_post.py` mounted in gf-api at `/webhook/new-post` | code deployed; needs `WEBHOOK_SECRET` on gf-api, the Airtable script repointed, then suspend his |
+| spencer-dropbox-automation-background `srv-d7j5ugrbc2fs73e6930g` (Docker worker, standard plan) | `sjtichenor/gf-dropbox-automation` as a **cron** every 10 min | blocked: Render cannot fetch the private repo (see below) |
+
+Both new crons run harmlessly before the paste: with no PAT the scripts get
+a 401 from Airtable, print it, find no posts and exit 0. Non-secret vars
+(`AIRTABLE_BASE_ID`, `AIRTABLE_TABLE_ID`, `AIRTABLE_CHANNELS_TABLE_ID`,
+`PYTHONUNBUFFERED`) were set at creation. The two syncs were reviewed for
+the zero-write trap that bit Facebook: `yt_sync` returns None on any API
+miss and skips the record; `twitter_sync` marks a failed batch with zeros
+but then skips every record carrying an `error` or all-zero metrics. Both
+preserve an existing Date Posted.
+
+**Webhook.** The Posts automation "Fetch metrics for new post"
+(`wfl143o4vp69pkhxh`, record created → script) POSTs `{record_id,
+post_url}` to `https://webhook-nedk.onrender.com/webhook/new-post` with no
+auth. The replacement in gf-api requires `X-Webhook-Secret` equal to
+`WEBHOOK_SECRET` (503 until it is set, so an unsecured endpoint never
+writes), fetches the record, and runs one platform handler in the
+background: YouTube (`YOUTUBE_API_KEY`), X (`TWITTER_BEARER_TOKEN`), TikTok
+(`tiktok/sync_tiktok.py` with the Auth-table tokens gf-api already holds;
+refreshes only when the access token is over 80 % through its life so it
+does not race the cron on the rotated refresh token), Facebook
+(`FacebookSync.process_single_facebook_post`, needs `FACEBOOK_PAGES`),
+Instagram (`InstagramDynamicSync` with its mapping built once and kept 30
+min, needs the `META_*` vars from gf-instagram). A platform without its
+keys on gf-api answers "not configured" and the cron covers it, so it can
+be brought up one platform at a time by copying env from the matching
+cron. `GET /webhook/health` lists which platforms are live and the last
+result per platform. Airtable's API refuses to edit a script action
+("read-only node"), so Spencer pastes the new script by hand; the text is
+in the chat of 2026-09-26 and here:
+
+```js
+let config = input.config();
+const WEBHOOK_SECRET = "PASTE_THE_SECRET_HERE";  // same as WEBHOOK_SECRET on gf-api
+if (!config.postUrl) {
+    console.log("no post url yet; the crons will pick it up");
+} else {
+    let response = await fetch("https://api.goodfuturemedia.com/webhook/new-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Webhook-Secret": WEBHOOK_SECRET },
+        body: JSON.stringify({ record_id: config.recordId, post_url: config.postUrl })
+    });
+    console.log(response.status, await response.text());
+}
+```
+
+**Transcription worker.** `gf-dropbox-automation` `main.py` now takes
+`RUN_ONCE=1` (process what is pending, exit), exits 0 with a message when
+any of its six keys is missing (so a cron never crash-loops before the
+paste), and has a Dockerfile (`python:3.11-slim` + ffmpeg; `moviepy` was in
+requirements but never imported, dropped). Plan: a Docker **cron job every
+10 minutes on the starter plan** instead of an always-on worker on the
+standard plan — the work is bursty and a cron run is skipped while the
+previous one is still going. `create_cron_job` was refused: "repository URL
+is invalid or unfetchable" — Render's GitHub credential is Farhan's and
+cannot see Spencer's private repo (the same reason gf-airtable-automation
+is public). Either connect Spencer's GitHub to the Render workspace, or
+make the repo public (it holds no secrets; every key is read from env). Env
+to paste afterwards: `AIRTABLE_API_KEY` (the PAT, note the different
+name), `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REFRESH_TOKEN`,
+`OPENAI_API_KEY` — whose Dropbox app and OpenAI account those are is not
+recorded; copy them from the old worker's env in the Render dashboard
+before it is deleted. Do not run both: two transcribers pick the same
+pending videos and pay Whisper twice.
