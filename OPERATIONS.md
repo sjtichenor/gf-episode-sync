@@ -2514,3 +2514,73 @@ Spencer, 08:35: the Shows table is already "shows we clip from, client or
 not — some we just like, some are prospects", so adding recurring Solana
 sources as real Shows is normal practice; one-offs (a TV segment, a
 conference talk) stay as text.
+
+### VC podcast rankings — `/dashboard/vc` (2026-09-26)
+
+Spencer: "add like every VC podcast to the database as a show, then a
+dashboard that ranks VC pods by their following on each social platform,
+so we can see where TradingVCs ranks." He also confirmed the Shows table is
+already "shows we clip from, client or not", which it was: 76 rows, many
+VC pods, Relationship = Watchlist/Prospect/Client/Former Client, Category
+multi-select with "Venture Capital".
+
+**Data model, nothing new invented.** A VC pod is a Shows row with
+Category containing "Venture Capital". Its official accounts are Channels
+rows linked to it, named "<Show> (official)", with **Status =
+"Benchmark"** (a new option, created by typecast) and GF Owned Media
+unchecked. What Benchmark means to each consumer: `x_followers` and
+`yt_sync` include it (they skip only Inactive), so X and YouTube counts
+refresh daily; the 09:00 snapshot logs its counts into Follower Logs like
+any channel; the **health audit skips it** (`snapshot_followers.health_check`
+treats only Status = Active as active), so an Instagram/TikTok profile with
+no daily source does not page anyone; the dashboard includes it (Inactive
+is the only exclusion) with `owned = False`, so the overview's "GF-owned
+only" toggle hides it. No RSS feed and Auto-Add Episodes off, so no
+episodes, nothing on the mining board, no publish-date notifications.
+
+**What was added (all handles verified before writing):** YouTube handles
+by fetching `youtube.com/@handle` (200 vs 404); X handles by fetching
+`x.com/handle` (200 vs 404 — x.com does distinguish). Only those two
+platforms were filled; Instagram and TikTok pages cannot be verified
+without a login and would need Social Blade credits to get counts, so they
+were left blank rather than guessed. 22 new Shows (Acquired, Lightcone
+Podcast, No Priors, Masters of Scale, Unsupervised Learning, The Logan
+Bartlett Show, Grit, Uncapped with Jack Altman, SaaStr, The Pitch, Venture
+Unlocked, In Depth, Crucible Moments, Generative Now, Capital Allocators,
+The Consumer VC, Turpentine VC, Venture Stories, Wish I Knew, The Full
+Ratchet, Equity, Greymatter), each with a Notes line saying when and why;
+33 Benchmark channels — those 22 plus official accounts for shows that
+already existed (20VC, Invest Like the Best, TWiST, a16z, Cheeky Pint,
+TBPN, The Peel, Sourcery (YouTube only: no X handle exists), All-In, BG2,
+The Kevin Rose Show). Where a pod has no dedicated account the firm's is
+used and the Notes say so (YC, First Round, Sequoia, Lightspeed VP,
+Bessemer, Greylock, Village Global). Left out on purpose: My First
+Million, Founders, Lenny's (not VC pods); Superclusters and New Economies
+(could not tell which of two handles is the show's); Greylock/Full
+Ratchet/Equity YouTube (no channel of their own).
+
+**Two things to check by hand:** the Trading Places Shows row lists
+`youtube.com/@TradingPlacesPod`, which returns 404; and Cheeky Pint's row
+points at `@stripe` while a `@CheekyPint` channel exists — the channel row
+uses @CheekyPint.
+
+**The page.** `dashboard/vc_pods.py` builds the table from the snapshot
+(Shows now carry `category` and `youtube`): per show, the channels linked
+to it that are not GF Owned Media (else all of them, so Trading Places'
+own accounts count), the largest count per platform across those, ranks
+per platform and overall with ties sharing a rank. `GET /dashboard/api/vc`
+serves it; `dashboard/vc.html` renders a sortable table with our shows
+highlighted and a footer line "Trading Places is #N of M overall, #a on X,
+#b on YouTube". Linked from every page's nav as "VC Pods".
+
+**A quota bug found on the way.** `yt_sync.resolve_youtube_channel_id_by_name`
+turned every `@handle` and `/user/` URL into a **search.list** call: 100
+quota units each, and it takes whatever channel ranks first for the
+handle text — not necessarily the channel. With 33 more handles that
+would have been 3,300 units per run, four runs a day, against a 10,000
+daily quota, i.e. the YouTube sync would have died. Now `channels.list`
+with `forHandle=` / `forUsername=` (1 unit, exact) with an in-run cache;
+search remains only for legacy `/c/name` URLs. Counts for the new channels
+appear after the next gf-youtube run (0 */6) and the next gf-api boot
+(X, 240 s after start); a handle X cannot find is listed in the
+`x followers` log line's `not_found`.
