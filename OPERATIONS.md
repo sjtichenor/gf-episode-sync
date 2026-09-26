@@ -2584,3 +2584,28 @@ search remains only for legacy `/c/name` URLs. Counts for the new channels
 appear after the next gf-youtube run (0 */6) and the next gf-api boot
 (X, 240 s after start); a handle X cannot find is listed in the
 `x followers` log line's `not_found`.
+
+**Follow-ups the same morning (2026-09-26, ~08:50 UTC).**
+- Spencer: shows added by the API (one-offs, benchmarks) must not show up
+  on the mining board → the 22 VC shows got **Mining Priority = Don't
+  Mine**; any show the Source Show step-2 code creates will too. (They have
+  no episodes anyway, so nothing would have appeared; the flag makes the
+  intent explicit and survives someone adding an RSS feed later.)
+- **Source Episode** (`fld9LeMsRUyqJ9bzL`, text) and **Source URL**
+  (`fldkAXEuh8TcBFcs0`, url) on Videos, filled by the same hourly pass:
+  Claude now answers `{show, episode, url}` per video; a row that already
+  has a Source Show keeps it (`known_show`) and only gets the episode and
+  link; "Unknown" goes into Source Episode when nothing names one, so a row
+  is asked once. Candidates are rows with no Source Show, plus rows with a
+  show but no Source Episode yet (the 204 labelled before the fields
+  existed). The client report's Episode column shows `episode ||
+  source_episode`.
+- **Profile page header was blue** because the monthly chart's `.bar`
+  class collided with the header's `.bar` container (`person.html`);
+  renamed `.mbar`. Mining board now defaults to **Aired in the last 7
+  days** (was 30).
+- **VC rankings page restyled after carta.com** (`dashboard/vc.html`,
+  standalone styles: near-white ground, ink text, hairline rules, one
+  accent, uppercase letter-spaced labels, tabular figures, a KPI strip
+  with "Trading Places #N of M" and inline bars per platform; dark mode
+  kept).
