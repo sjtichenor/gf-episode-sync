@@ -2712,3 +2712,28 @@ gold). `person.html` draws each as a white pill with a gradient medallion
 on the left — medal, summit, star, bolt, layers, scissors — all inline SVG,
 nothing to load. The old `.bdg` rules (blue pill, stacked text) were
 removed; they had been fighting the new ones.
+
+**The Social Blade pull, 10:01 UTC 2026-09-26 (Spencer triggered it).**
+Balance was 38 credits, not the 81 the notes carried (spent since), and
+an `archive` history pull costs 1–3 credits per profile, so the run
+stopped at the floor after **21 profiles, 1,666 Follower Logs rows**.
+Every handle it reached resolved to the right show (identity line in the
+log). Channels filled: 20VC IG 162,420 / TikTok 276,500; All-In IG
+177,029 (its TikTok `allin` history ends 2026-06-11 — Social Blade stopped
+tracking it, so no field written); a16z IG 210,607 / **TikTok 67 — that
+handle is real but tiny, worth a second look**; BG2 IG 932 / TikTok
+1,034; The Peel IG 685 / TikTok 1,142; The Logan Bartlett Show TikTok
+30,200; The Pitch IG 5,662 / TikTok 1,865; Invest Like the Best IG 1,430
+/ TikTok 775; TBPN IG 52,758 / TikTok 4,215; Masters of Scale IG 85,752 /
+TikTok 25,700; Capital Allocators IG 1,500. Turpentine IG: Social Blade
+404 (untracked). **Not reached (credits):** Cheeky Pint, Kevin Rose,
+Acquired, Y Combinator, No Priors, This Week in Startups, Sequoia, First
+Round, SaaStr — 15 profiles, roughly 30 credits. Buying 100 more ($50)
+covers those plus the first monthly refresh; the monthly path now pulls
+`default` history (cheaper) instead of `archive`.
+
+**Bug found by the same run:** the health fill PATCHed Channels with the
+same record twice in one batch (a channel with two findings) → Airtable
+422 "cannot update the same record multiple times" → the whole fill was
+dropped, which is why Good Politics IG and Solana TikTok still DIVERGE and
+the cron exited 3. Fixed: updates are merged per record before the PATCH.
