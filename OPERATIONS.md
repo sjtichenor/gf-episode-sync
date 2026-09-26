@@ -2365,7 +2365,9 @@ about again; the dashboards treat that as blank. A value typed by hand is
 never touched; clear a cell to have it re-asked. Needs **`ANTHROPIC_API_KEY`
 on gf-api** (Spencer pastes it; until then the thread does not start).
 Manual: `POST /dashboard/api/source-shows/sync?dry=1&limit=30` (admin;
-dry returns the labels it would write), status at
+dry returns the labels it would write), or the same dry run as a link to
+open in a signed-in browser: `GET /dashboard/api/source-shows/preview?limit=30`
+(added after Spencer tried the curl with a placeholder cookie). Status at
 `GET /dashboard/api/source-shows/status`. Script form:
 `python -m videos.source_show --dry-run --limit 30`.
 
