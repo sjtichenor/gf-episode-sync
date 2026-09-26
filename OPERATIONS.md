@@ -2778,3 +2778,48 @@ unit tests in tests/test_source_show_images.py. Cost is cents.
 `SOURCE_SHOW_RETRY_UNKNOWN=1` set again on gf-api so the first pass after
 this deploy re-asks the Unknowns with their screenshots; set it back to 0
 afterwards.
+
+**Agent: Source Show step two — recurring sources become Shows, clips get
+linked to episodes.** Tally of Source Show across Solana's 425 clips (221
+Unknown): Solana Breakpoint 2025 24, Lightspeed 14, Impact Theory 13, New
+Economies 8, Talking Tokens 8, Genfinity 8, SPI Summit 2026 7, The Peel 6,
+CNBC 6, The Luba Show 6, Fintech.TV 6, PokerNews 5, The Compound 4, The
+Index 4, Coinage 4, Jito Q1 call 4, "Solana, New Ideas" 4, ARK Invest 4,
+Ecosystem 4, Raoul Pal 3, DAS 2026 3, Ranveer 3, Market Bubble 3, Silicon
+Valley Girl 3, Global Money Talk 3, Consensus 2026 3. Events, TV, Vimeo
+series and feed-less YouTube outlets stay text-only. Every feed was fetched
+and checked for `<channel>`, every YouTube handle fetched (200) and its
+title read. **Updated rows** (blank fields only + Auto-Add Episodes on):
+Lightspeed (YouTube @LightspeedpodHQ), New Economies (@newEconomiesPod —
+settles the earlier two-handle doubt), The Luba Show (@lifeofluba), The
+Index Show (RSS buzzsprout 2092514, @TheIndexPodcast), Genfinity (RSS
+podbean supportgg, @GenfinityMedia). **Created** (Watchlist, Mining
+Priority Don't Mine, Auto-Add on, Notes line): Impact Theory
+`rec4xXWblr40R7JLJ`, PokerNews Podcast `recDAHwomGCo49ie3`, The Compound
+and Friends `recItpDQzhDo2a5RM`, ARK Invest Podcast (FYI)
+`recSidaPHH0qG6kdz`, The Ranveer Show `rec1UwMdBGVfOHPxj`, Silicon Valley
+Girl `recf4Q9BwS2g0BoU1`, Raoul Pal: The Journey Man `recHBPbsJRtaEFAmD`.
+
+**Backfill reality:** the episode sync's `EPISODE_LOOKBACK_DAYS` is 30
+and `MAX_NEW_EPISODES_PER_SHOW` 25 per run, so these shows only get
+episodes aired since late August; the Solana clips reach back to
+2025-11, so most of *their* episodes will not exist. Also
+`fill_youtube_links` skips Don't Mine shows and Megaphone/Libsyn feeds
+rarely carry YouTube links, so the YouTube-id rule rarely fires; the
+title+date rule carries it. The right next step is a targeted backfill:
+parse each show's feed and create only the episodes a clip would link to
+(not thousands of daily Impact Theory rows). Not built yet.
+
+**`videos/link_episodes.py`** (19 unit tests, copied from the agent's
+worktree — `isolation: worktree` had put it in gf-episode-sync — and wired
+into gf-api, commit 6a7eff0): candidates = videos with a Source Show
+(≠ Unknown) and no Full Episode; show resolution exact → stopword-stripped
+→ contiguous-run match, one match only; rule (a) Source URL YouTube id ==
+episode YouTube Link id; rule (b) ≥50 % of the Source Episode's words
+(minus stopwords and the show's own words) in the episode title, ≥2 words,
+two adjacent, and Air Date within 14 days of the clip's Date Created; ties
+skipped; everything unlinked listed with a reason. Hourly
+(`SOURCE_LINK_SECONDS`, first pass 400 s after boot); `POST
+/dashboard/api/link-episodes/sync?dry=1`, `GET
+/dashboard/api/link-episodes/preview` (admin, plan only), `GET
+/dashboard/api/link-episodes/status`.
