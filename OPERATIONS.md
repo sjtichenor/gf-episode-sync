@@ -2488,3 +2488,29 @@ finds them.
 died on the first batch — `max_tokens` 1500 truncated the JSON mid-list
 ("no JSON in answer"). Raised to 4000, and a failed batch is now logged
 in `batch_errors` and skipped instead of aborting the pass.
+
+**Source Show, second look (08:30 UTC).** The first full pass: 425
+candidates, 142 labelled, 283 Unknown — too many. Sampling the Unknowns
+showed the copy names the show plainly in its sign-off ("— Lily Liu,
+President of the Solana Foundation on Squawk Box Europe", "on
+@bloombergtv") but `evidence()` only forwarded lines shaped like
+"on @handle" / "on the X podcast", and the fallback sent the first 160
+characters of the copy, which is the quote, not the sign-off. Fixed: every
+dash-led line is forwarded, plus a wider "on <Name> show/tv" pattern.
+Second fix: when the notes' SOURCE is a YouTube link, the public oEmbed
+endpoint (`youtube.com/oembed?url=…`, no key) gives the video title and
+**channel name** ("The Peel with Turner Novak"), now sent as
+`source_video` — the strongest single clue. To re-ask the Unknowns after
+an evidence improvement, set `SOURCE_SHOW_RETRY_UNKNOWN=1` on gf-api: the
+first pass after boot includes them, later passes do not; set it back to 0
+afterwards so a redeploy does not re-ask again. Shows found in the first
+pass, for the "which become real Shows" decision: Solana Breakpoint 2025
+(20), Lightspeed (9), New Economies (8), Genfinity (8), Impact Theory (8),
+The Peel (6), The Luba Show (6), Talking Tokens Podcast (6), Fintech.TV
+(5), CNBC (4), The Index (4), PokerNews Podcast (4), Solana, New Ideas (4),
+Ecosystem (4), then a long tail of 1–3.
+
+Spencer, 08:35: the Shows table is already "shows we clip from, client or
+not — some we just like, some are prospects", so adding recurring Solana
+sources as real Shows is normal practice; one-offs (a TV segment, a
+conference talk) stay as text.
