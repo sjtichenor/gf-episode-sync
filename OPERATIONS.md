@@ -2248,3 +2248,40 @@ original.
 
 Interface page **Contractor Invoices** in Business Tools: grid, tabs To pay
 / Paid / Needs a person.
+
+### X followers for every channel — `followers/x_followers.py` in gf-api (2026-09-26)
+
+Found while setting up ThursdAI: X counts were moving daily for All-In,
+Trading Places, BG2 and the older accounts but were **blank for ThursdAI,
+Steelman, US In Common and Solana Clipped**. Farhan's X cron runs
+`twitter_followers_sync.py`, which only looks up handles present in its
+`TWITTER_ACCOUNTS` env list (username → user id) and logs "No mapping" for
+the rest. Social Blade cannot cover it: `matrix.sbapis.com/b/twitter/...`
+404s exactly like a made-up platform (checked 2026-09-26), so the doc note
+"Social Blade does not carry X" stands.
+
+`followers/x_followers.py` replaces the list with `GET
+https://api.x.com/2/users/by?usernames=…&user.fields=public_metrics` (100
+handles per call), writes **Twitter Followers** (`fldmoDtZyGC2bKY6N`) on every
+non-Inactive channel with a Twitter Profile, only when the value changed,
+and leaves a handle X cannot find untouched (logged in `not_found`). It runs
+as a thread inside gf-api (240 s after boot, then `X_FOLLOWERS_SECONDS`,
+default daily) once `TWITTER_BEARER_TOKEN` is set on gf-api — the token is
+Spencer's own X developer app, the same one Farhan's cron uses. Manual:
+`POST /dashboard/api/x-followers/sync` (admin; `?dry=1`), status at
+`GET /dashboard/api/x-followers/status`. Farhan's cron keeps writing the
+handles it knows; the values agree, so the overlap is harmless.
+
+The 09:00 UTC snapshot copies the field into Follower Logs, so X history
+for those accounts starts the day after the token is pasted.
+
+**ThursdAI channel, 2026-09-26:** Spencer pointed its X profile at
+@thursdai_pod (the show's account, where the X clips go) and added a
+separate **Alex Volkov** channel for @altryne; on every other network the
+clips go to Alex's personal accounts, which stay on the ThursdAI channel
+(IG @altryne_ai, TikTok @altryne, YouTube @altryne, the Facebook Page,
+LinkedIn). Social Blade rows exist daily for IG/TikTok/YouTube; the
+Channels IG and TikTok follower fields were blank at the time and the 09:00
+health fill (NO FIELD with a Social Blade row ≤ 3 days old) refills them.
+The Alex Volkov channel is not linked to the show, so it does not appear on
+the ThursdAI client page (`/clients/thursdai`, live 2026-09-26 06:52 UTC).
