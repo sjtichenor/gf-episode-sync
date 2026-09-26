@@ -2702,3 +2702,13 @@ theloganbartlettshow, thepitchshow. 16 TikTok + 20 Instagram profiles on
 the Benchmark channels → the SB_ONCE pull is ~36 credits. Grit's channel
 also carries Kleiner Perkins' Facebook page (Spencer), not in the pull
 unless SB_PLATFORMS gains facebook.
+
+**Profile badges got icons (2026-09-26).** `activity.person_profile`
+badges now carry `kind` (count, million, hundredk, streak, range, clean)
+and `tier` (bronze / silver / gold / diamond: Fifty=bronze, Century=silver,
+250 and 500 Club=gold, 1,000 Club=diamond; streak bronze <14 days, silver
+<30, gold ≥30; 1M Club gold, 100k Club silver, Range silver, Clean cuts
+gold). `person.html` draws each as a white pill with a gradient medallion
+on the left — medal, summit, star, bolt, layers, scissors — all inline SVG,
+nothing to load. The old `.bdg` rules (blue pill, stacked text) were
+removed; they had been fighting the new ones.
