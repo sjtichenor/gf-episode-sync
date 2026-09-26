@@ -2331,3 +2331,12 @@ someone will see it; fixing it means adding the profile URL, the token, or
 the ignore entry, whichever the finding names. Tested in fake mode by
 deleting a channel's recent Instagram rows: NO ROW appeared on the API,
 in the digest text, and on the page.
+
+**Heatmap squares open a pop-up (2026-09-26).** Clicking a day on a
+person's heatmap used to set the shared "Day detail" section at the bottom
+of the page and scroll there, which showed everyone's actions for that day
+and read as unrelated to the card. It now opens a modal with that one
+person's actions for that day (time, action pill, clip, detail), with ‹ ›
+and the arrow keys walking along their row and Esc closing it. The Day
+picker in the filter bar still drives the bottom section for the
+everyone-on-one-day view.
