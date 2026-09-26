@@ -2737,3 +2737,44 @@ same record twice in one batch (a channel with two findings) → Airtable
 422 "cannot update the same record multiple times" → the whole fill was
 dropped, which is why Good Politics IG and Solana TikTok still DIVERGE and
 the cron exited 3. Fixed: updates are merged per record before the PATCH.
+
+### First agent fan-out (2026-09-26, ~10:15 UTC)
+
+Spencer asked for Claude to run as the head of an agent swarm. Three
+background subagents, briefed from this file; Claude reviewed, merged,
+deployed and wrote this up. Lessons: `isolation: worktree` makes a worktree
+of the *cwd* repo (gf-episode-sync), so a code agent for gf-api has to make
+its own worktree under `~/Projects/gf-airtable-automation/.claude/worktrees/`;
+and `git add -A` in the main checkout then sweeps that directory in as an
+embedded repo (one bad commit, 9f53564 fixed it; `.claude/` is now in that
+repo's .gitignore). Merge agent branches with `git merge --no-ff`, never
+`add -A` while a worktree exists.
+
+**Agent: Airtable interface for the VC rankings.** New interface **VC
+Podcast Rankings** `pbd1pdf2RPCZJLsw8`, dashboard page `pag50If9vC22MJ8Zk`
+(https://airtable.com/appxCYu0Tfwc6h7X7/pag50If9vC22MJ8Zk), published. A
+new interface rather than a page in Business Tools because publishing an
+interface publishes every draft edit in it. One section on Channels: scope
+= Status Benchmark OR Shows in {BG2Pod, Trading Places, 5 Year Frontier}
+(the Client/Owned VC shows, hard-coded ids because scope filters cannot
+nest), tabs "Benchmark accounts" / "Good Future shows", five bar charts
+(total and per platform, MAX of the follower field by account), a ranking
+grid sorted by Total Followers and a by-show grouped grid. Sharing is set
+in the Airtable UI. Limits: charts cannot cap at top 20; a show-level
+ranking would need a rollup on Shows (MAX of linked Benchmark channels'
+Total Followers) — described, not created.
+
+**Agent: screenshots as evidence for Source Show** (merged as 74a42fc).
+40 of the 221 Unknown Solana clips carry an image in Attachment (all
+iPhone screenshots of the source video, none in Thumbnail). For a video
+whose text evidence is thin (no attribution, no source video, no
+research), the first image attachment goes to Claude as an image block
+(Airtable's ~512 px large thumbnail; URLs are signed and expire in ~2 h,
+so they are read in the pass that uses them and never stored). Prompt
+tells the model what a screenshot tends to show (channel name under the
+player, logo, chyron). `SOURCE_SHOW_IMAGES=0` turns it off; summary gains
+`images: N`; a 400 mentioning "image" retries the batch text-only. 15
+unit tests in tests/test_source_show_images.py. Cost is cents.
+`SOURCE_SHOW_RETRY_UNKNOWN=1` set again on gf-api so the first pass after
+this deploy re-asks the Unknowns with their screenshots; set it back to 0
+afterwards.
