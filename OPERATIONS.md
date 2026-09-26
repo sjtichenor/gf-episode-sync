@@ -2823,3 +2823,14 @@ skipped; everything unlinked listed with a reason. Hourly
 /dashboard/api/link-episodes/sync?dry=1`, `GET
 /dashboard/api/link-episodes/preview` (admin, plan only), `GET
 /dashboard/api/link-episodes/status`.
+
+**Screenshots, second attempt (10:25 UTC).** The first live pass with
+images lost 13 of 15 batches: Anthropic's URL image fetcher answered 400
+"This URL is disallowed by the website's robots.txt file" for every
+`v5.airtableusercontent.com` link, and the text-only retry only fired on a
+400 whose message contained "image", which this one does not. Fixed in
+734a844: gf-api downloads each screenshot itself (`fetch_image`, 20 s
+timeout, image/* only, ≤ 4 MB) and sends it as a base64 image block; a
+fetch that fails simply drops that image; any 400 on a batch that carried
+images is retried text-only. `SOURCE_SHOW_RETRY_UNKNOWN` is still 1 so
+the pass after this deploy re-asks the Unknowns; set it to 0 afterwards.
