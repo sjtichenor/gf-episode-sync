@@ -2390,7 +2390,7 @@ repos. State after this session:
 | Youtube service (posts+followers) `crn-d2sk98p5pdvs739ibnj0`, 0 */6 | **gf-youtube** `crn-darn96favr4c73fcsfb0`, `python yt/sync_yt.py`, 0 */6 | created; needs `AIRTABLE_PERSONAL_ACCESS_TOKEN` + `YOUTUBE_API_KEY` pasted, then suspend his |
 | Tiktok service (posts) / (followers) | gf-tiktok (since 2026-09-16) | still running in parallel; **Spencer suspends his** |
 | webhook `srv-d8olhujeo5us73eedo10` (branch `whook`) | `webhook/new_post.py` mounted in gf-api at `/webhook/new-post` | code deployed; needs `WEBHOOK_SECRET` on gf-api, the Airtable script repointed, then suspend his |
-| spencer-dropbox-automation-background `srv-d7j5ugrbc2fs73e6930g` (Docker worker, standard plan) | `sjtichenor/gf-dropbox-automation` as a **cron** every 10 min | blocked: Render cannot fetch the private repo (see below) |
+| spencer-dropbox-automation-background `srv-d7j5ugrbc2fs73e6930g` (Docker worker, standard plan) | **gf-transcription** `crn-darnp1e0tbcc73cbfalg`, Docker, `*/10 * * * *`, starter | created 08:04 UTC after the repo was made public; needs the five keys pasted, **suspend the old worker first** |
 
 Both new crons run harmlessly before the paste: with no PAT the scripts get
 a 401 from Airtable, print it, find no posts and exit 0. Non-secret vars
@@ -2446,9 +2446,14 @@ standard plan — the work is bursty and a cron run is skipped while the
 previous one is still going. `create_cron_job` was refused: "repository URL
 is invalid or unfetchable" — Render's GitHub credential is Farhan's and
 cannot see Spencer's private repo (the same reason gf-airtable-automation
-is public). Either connect Spencer's GitHub to the Render workspace, or
-make the repo public (it holds no secrets; every key is read from env). Env
-to paste afterwards: `AIRTABLE_API_KEY` (the PAT, note the different
+is public). It turned out the credential is on Spencer's own Render
+*account* (Account settings → Account Security → Git Deployment
+Credentials shows `Farhan5217`, with his other clients' repos listed), and
+Render allows one GitHub credential per account, so Spencer's cannot be
+added until Farhan's is removed — which waits until his services are
+confirmed replaced (reminder scheduled for 2026-09-27 09:00 Bogotá).
+Spencer made the repo public instead (it holds no secrets; every key is
+read from env) and the cron was created. Env to paste on it: `AIRTABLE_API_KEY` (the PAT, note the different
 name), `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REFRESH_TOKEN`,
 `OPENAI_API_KEY` — whose Dropbox app and OpenAI account those are is not
 recorded; copy them from the old worker's env in the Render dashboard
