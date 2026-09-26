@@ -2285,3 +2285,49 @@ Channels IG and TikTok follower fields were blank at the time and the 09:00
 health fill (NO FIELD with a Social Blade row ≤ 3 days old) refills them.
 The Alex Volkov channel is not linked to the show, so it does not appear on
 the ThursdAI client page (`/clients/thursdai`, live 2026-09-26 06:52 UTC).
+
+### Person profile page — `/dashboard/team/{team_id}` (2026-09-26)
+
+Every name and photo on the Team page links to an all-time profile:
+`GET /dashboard/team/{id}` renders `dashboard/person.html`, which fetches
+`GET /dashboard/api/person/{id}` (any signed-in team member). The numbers
+come from `activity.person_profile(snap, team_id)` over the whole snapshot,
+not the activity window: videos edited / finished / directed / mined /
+posted, a by-month bar chart, total and best views, top 8 clips, the last
+12, and a milestones timeline (`MILESTONE_COUNTS` = 1, 10, 25, 50, 100,
+250, 500, 1000 finished videos, first 100k and first 1M clip, best month,
+joined date). Badges: the count tiers, 1M Club, 100k Club, N-day streak,
+Range (editor + director + miner), Clean cuts (low revision rate). Streak
+and revisions still use the activity window because they come from
+`build_events`. Deployed 2026-09-26 with the health routine below.
+
+### Follower data health, where people look — `dashboard/health_view.py` (2026-09-26)
+
+The four blank X accounts sat unnoticed for months because the only audit
+was the 09:00 cron (§ gf-follower-snapshot) and it had two blind spots:
+X was not in `LOGGED_DAILY`, so "X has a profile but no count and no rows"
+was a severity-1 "look" finding that never failed the cron, and a failed
+cron only produces a Render email. Three changes:
+
+1. `followers/health.py`: `LOGGED_DAILY` now includes X, because
+   `x_followers.py` writes it daily. An X account with no fresh row is now
+   NO ROW (act). Threads stays manual → NO FIELD (look).
+2. The snapshot's follower rows carry `independent` (the Follower Logs
+   Notes field `fldzZQzMg6XvKlltN` starts with "Social Blade"), and
+   `dashboard/health_view.py` runs the same `health.audit` against the
+   snapshot every time it is asked. `GET /dashboard/api/health` (signed
+   in) returns `{act, look, text, checked}`; `HEALTH_IGNORE` on gf-api
+   mutes pairs exactly as on the cron — **copy the cron's value over** so
+   both agree.
+3. Two places show it: the Team page has a panel above the people (green
+   "every active account is updating" when clean, red list of act findings
+   otherwise, minor ones summarised), and the daily Slack digest gets a
+   "Data health — needs a hand" section only when there is an act finding,
+   so a clean day says nothing.
+
+So the routine is: the cron fills what Social Blade can fill and fails
+loudly on the rest; the Team page and the digest repeat the failure where
+someone will see it; fixing it means adding the profile URL, the token, or
+the ignore entry, whichever the finding names. Tested in fake mode by
+deleting a channel's recent Instagram rows: NO ROW appeared on the API,
+in the digest text, and on the page.
