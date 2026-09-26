@@ -2641,3 +2641,28 @@ the title ("Compiled by Good Future Media · the podcast clipping studio ·
 goodfuturemedia.com"), and a credit strip at the bottom of the leaderboard
 card with the mark, "Good Future Media · VC Podcast Rankings" and the
 data-as-of stamp, plus the URL again in the footer line.
+
+**Instagram and TikTok for the VC benchmark accounts via Social Blade
+(2026-09-26, Spencer approved the credits).** Neither platform can be
+verified without a login (both return 200 for any handle), and no sync we
+run can read third-party counts there, so: (1) IG/TikTok profile URLs were
+written on the Benchmark channels where the handle is well known (24
+Instagram, 18 TikTok; firms and small pods left blank rather than
+guessed); (2) `socialblade_backfill.py` now logs who Social Blade says
+each handle is ("… is "Acquired" on Social Blade") so a wrong-but-existing
+handle shows in the log review, and **writes the Channels follower field**
+for a Benchmark channel (or any blank field) from the latest row, since
+the health fill skips Benchmark channels and nothing else would ever put
+the number where the dashboards read; (3) `snapshot_followers.py` gained
+two schedules that need no cleanup: `SB_ONCE=YYYY-MM-DD` runs the step on
+that date only, `SB_MONTHLY_ONLY=<name filter>` (+ `SB_MONTHLY_DAY`,
+default 1) runs it monthly for channels whose name contains the filter,
+Instagram+TikTok unless `SB_PLATFORMS` says otherwise. Set on
+gf-follower-snapshot: `SB_ONCE=2026-09-26`, `SB_ONLY=(official)`,
+`SB_PLATFORMS=instagram,tiktok`, `SB_MAX_PROFILES=80`, `SB_MIN_CREDITS=3`,
+`SB_MONTHLY_ONLY=(official)`, `SB_MONTHLY_DAY=1`. Every Benchmark channel
+is named "… (official)", which is what the filter keys on. About 42
+profiles ≈ 42 credits of the 81; the monthly refresh costs the same again
+each month (~$21 at $50/100). Spencer triggers the run by hand today
+(Render → gf-follower-snapshot → Trigger Run); after that the 09:00 cron
+only touches Social Blade on the 1st.
