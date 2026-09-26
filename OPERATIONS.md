@@ -2621,9 +2621,12 @@ outside closes, and it re-anchors on scroll. Button reads "Assign" /
 `FAKE_EXEC=1` so exec-only buttons render locally.
 
 **VC rankings pick a show's own accounts first.** BG2 showed our fan
-account's YouTube count (bg2clips / @bradgerstnerclips, which GF ran; GF
-also ran the official @bg2pod accounts for a time) because the rule was
-"any channel not GF Owned Media". Now: Status = Benchmark channels first,
+account's count because the rule was "any channel not GF Owned Media".
+The "BG2" Channels row (X @bg2clips, YouTube @bradgerstnerclips) is a
+**fan account GF ran, and both of those were banned on YouTube** (Spencer,
+2026-09-26); GF also ran the official @bg2pod accounts for a time, and
+those are what "BG2 (official)" tracks. Like Trading Places' banned
+channel, the fan rows stay as they are for the clip history. Now: Status = Benchmark channels first,
 then non-owned, then anything linked. Shows whose accounts have no counts
 yet are listed greyed as "awaiting sync" instead of hidden — the day they
 were created only two shows appeared and Spencer asked why. Cheeky Pint's
