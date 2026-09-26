@@ -2459,3 +2459,32 @@ name), `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `DROPBOX_REFRESH_TOKEN`,
 recorded; copy them from the old worker's env in the Render dashboard
 before it is deleted. Do not run both: two transcribers pick the same
 pending videos and pay Whisper twice.
+
+**Transcription script rewritten (2026-09-26, gf-dropbox-automation
+commit 9153f54).** Spencer asked for the token name to match and for
+Farhan's inefficiencies and bugs to go. Found and fixed: (1) every pass
+downloaded every field of every Videos row and filtered in Python — now a
+formula-filtered fetch of three fields; (2) any failure, including a
+transient one, wrote the string **"BAD LINK" into Transcript**, which
+counts as a transcript everywhere downstream (Transcript Ready? = Yes, and
+the auto AI Copywriter fires on a non-empty Transcript) — now failures go
+to a new **`Transcription Note`** field (`fldCmv27pE5InFqrj`) as "attempt
+N: <reason>", Transcript stays empty, and the row is skipped after
+`MAX_ATTEMPTS` (3); clear the note to retry. Dead links (Dropbox 403/404,
+folder links) go straight to attempt 3; (3) ffmpeg ran with stderr
+discarded and no timeout — its last error line now reaches the note and a
+download is killed after `FFMPEG_TIMEOUT` (1200 s); (4) a Dropbox SDK
+client was built from three secrets and never called — removed, so the
+cron needs only `AIRTABLE_PERSONAL_ACCESS_TOKEN` (or the old
+`AIRTABLE_API_KEY`) and `OPENAI_API_KEY`; (5) the title was read from a
+field called Name that does not exist. **The 90 rows carrying "BAD LINK"
+were migrated**: Transcript cleared (Airtable stores a cleared rich text
+as "\n", which its own isEmpty treats as empty — checked), note set to
+"attempt 3: BAD LINK (old worker's marker, moved out of Transcript
+2026-09-26)" so they are not retried and a search for BAD LINK still
+finds them.
+
+**Source Show first live run, 08:11 UTC:** the pass reached Claude and
+died on the first batch — `max_tokens` 1500 truncated the JSON mid-list
+("no JSON in answer"). Raised to 4000, and a failed batch is now logged
+in `batch_errors` and skipped instead of aborting the pass.
