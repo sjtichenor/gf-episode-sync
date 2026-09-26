@@ -2632,3 +2632,12 @@ yet are listed greyed as "awaiting sync" instead of hidden — the day they
 were created only two shows appeared and Spencer asked why. Cheeky Pint's
 Shows row now points at @CheekyPint; Trading Places' `@TradingPlacesPod`
 404 is deliberate: the channel was banned, may come back, so the row stays.
+
+**Branding on the VC rankings page (2026-09-26).** Spencer expects people
+to screenshot and share it, so the page carries Good Future Media in
+three places that survive a crop: the brand mark (the favicon's gradient
+circle, inlined as SVG) next to the wordmark in the header, a byline under
+the title ("Compiled by Good Future Media · the podcast clipping studio ·
+goodfuturemedia.com"), and a credit strip at the bottom of the leaderboard
+card with the mark, "Good Future Media · VC Podcast Rankings" and the
+data-as-of stamp, plus the URL again in the footer line.
