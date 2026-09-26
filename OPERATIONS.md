@@ -2609,3 +2609,23 @@ appear after the next gf-youtube run (0 */6) and the next gf-api boot
   accent, uppercase letter-spaced labels, tabular figures, a KPI strip
   with "Trading Places #N of M" and inline bars per platform; dark mode
   kept).
+
+**Assign popover on the mining board (2026-09-26).** The inline
+select + Assign + × row wrapped the card's buttons onto two lines and
+looked cheap. `openAssign` now opens a fixed-position popover under the
+button: a search box, Directors first (the show's usual miner sorted to
+the top and tagged "usual", the current assignee marked), then everyone
+else, photos or initials; click or Enter assigns, ↑↓ move, Esc or a click
+outside closes, and it re-anchors on scroll. Button reads "Assign" /
+"Reassign" with a chevron. `.claude/launch.json` (fake preview) now sets
+`FAKE_EXEC=1` so exec-only buttons render locally.
+
+**VC rankings pick a show's own accounts first.** BG2 showed our fan
+account's YouTube count (bg2clips / @bradgerstnerclips, which GF ran; GF
+also ran the official @bg2pod accounts for a time) because the rule was
+"any channel not GF Owned Media". Now: Status = Benchmark channels first,
+then non-owned, then anything linked. Shows whose accounts have no counts
+yet are listed greyed as "awaiting sync" instead of hidden — the day they
+were created only two shows appeared and Spencer asked why. Cheeky Pint's
+Shows row now points at @CheekyPint; Trading Places' `@TradingPlacesPod`
+404 is deliberate: the channel was banned, may come back, so the row stays.
